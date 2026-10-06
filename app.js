@@ -238,6 +238,66 @@ var MODEL_NOTE = "";
 
 function isRateLimit(txt, status) { return status === 429 || /rate.?limit|too many requests|\b429\b/i.test(txt || ""); }
 function isDailyCap(txt) { return /free-models?-per-day|add .{0,14}credit|per day|每日/i.test(txt || ""); }
+
+/* 由 OpenAI／OpenRouter 錯誤體抽出真正原因（message / error_type / code） */
+function errInfo(txt, status) {
+  var msg = "", etype = "", code = status || "", t = String(txt || "");
+  try {
+    var j = JSON.parse(t), e = (j && (j.error || j)) || {};
+    if (typeof e === "string") msg = e;
+    else {
+      msg = e.message || e.detail || "";
+      if (e.code) code = e.code;
+      if (e.error_type) etype = e.error_type;
+      if (e.metadata) {
+        if (e.metadata.error_type) etype = e.metadata.error_type;
+        if (e.metadata.provider_code) etype = (etype ? etype + " / " : "") + e.metadata.provider_code;
+        if (e.metadata.raw) msg = msg + " " + String(e.metadata.raw).slice(0, 120);
+      }
+    }
+  } catch (e2) { msg = t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 300); }
+  return { msg: (msg || t.slice(0, 300)).replace(/\s+/g, " ").trim(), etype: etype, code: code };
+}
+
+/* 錯咗之後，畀人話得明嘅解釋（唔使查 Google 都知點做） */
+function explainHttp(status, txt) {
+  var i = errInfo(txt, status), m = i.msg || "", et = i.etype || "";
+  var L = ["❌ HTTP " + (i.code || status) + (et ? "（" + et + "）" : "") + "：" + m];
+  if (status === 429) return rateLimitMsg(txt, status);
+  if (status === 401)
+    L.push("\n👉 401 ＝ API Key 無效／未生效。去「設定」重新貼一次 key（OpenRouter key 開頭係 sk-or-）。");
+  else if (status === 402)
+    L.push("\n👉 402 ＝ 唔夠 credit。去 openrouter.ai/settings/credits 入錢，或改用免費（:free）型號。");
+  else if (status === 403) {
+    if (/key limit|credit limit|limit exceeded/i.test(m + " " + et))
+      L.push("\n👉 403 ＝ 你條 API Key 設咗上限（Credit limit），用完額度就會 403。\n解決：去 openrouter.ai/settings/keys → 搵你條 key → Credit limit 改成 Unlimited（或加大）→ 儲存，等 1 分鐘再按「測試連線」。");
+    else if (/content|safety|policy|moderation|refus|guardrail|injection/i.test(m + " " + et))
+      L.push("\n👉 403 ＝ 內容／守則過濾攔住（唔係你設定錯）。App 會自動試其他免費模型；若個個都攔，可能係供應商（例如 Google）對某類圖片嘅安全過濾 —— 可換供應商（Mistral／阿里 Qwen）或換張清晰啲、冇反光嘅收據相。");
+    else
+      L.push("\n👉 403 ＝ key 有效但無權限／被攔。逐項檢查：\n① openrouter.ai/settings/keys → 你條 key 有冇設 Credit limit（改 Unlimited）\n② openrouter.ai/settings/privacy → 私隱／provider 設定有冇鎖住\n③ openrouter.ai/settings/limits → 帳戶有冇觸發用量限制");
+  }
+  else if (status === 400 && /image|too large|payload|base64|modality/i.test(m))
+    L.push("\n👉 400 ＝ 圖片格式／大小問題。App 已壓到 1280px；再失敗就換一張相（唔好超過 20MB）。");
+  else if (status >= 500)
+    L.push("\n👉 供應商伺服器臨時故障，等 30 秒再按「測試連線」通常就好。");
+  else
+    L.push("\n👉 伺服器拒絕咗呢次請求，原文見下。");
+  L.push("\n\n伺服器原話：" + String(txt || "").slice(0, 400));
+  return L.join("");
+}
+
+/* 係唔係「換個模型就可能得」？key／錢／認證問題一律唔換（換都冇用） */
+function isModelBlock(e) {
+  if (!e) return false;
+  var st = e.http || 0, t = String(e.body || e.message || ""), info = errInfo(t, st);
+  var blob = (info.msg + " " + info.etype + " " + t).toLowerCase();
+  if (st === 401 || st === 402 || st === 404) return false;
+  if (/key[_ ]?limit|credit[_ ]?limit|insufficient|no auth|user not found|invalid api key|unauthorized|not enough credit/.test(blob)) return false;
+  if (/free-models?-per-day|per day|每日/.test(blob)) return false;   /* 帳戶級日限：轉型號都冇用 */
+  if (/content|safety|policy|moderation|refus|guardrail|injection|blocked/.test(blob)) return true;
+  if (/no endpoints|not available|unsupported|region|capacity|rate.?limit|overload|unavailable|timeout|upstream|no healthy/.test(blob)) return true;
+  return st === 429 || st === 502 || st === 503 || st === 504 || st === 529;
+}
 function rateLimitMsg(txt, status) {
   var cap = isDailyCap(txt);
   return "🚦 HTTP " + (status || 429) + "：免費模型暫時擠塞" + (cap ? "／今日免費額度已用完" : "") + "。\n\n" +
@@ -289,9 +349,11 @@ function _postModel(parts, useModel) {
       return r.text().then(function (t) {
         AI_DEBUG.status = r.status;
         if (!r.ok) {
-          if (isRateLimit(t, r.status)) throw new Error(rateLimitMsg(t, r.status));
-          if (r.status === 402) throw new Error("💳 HTTP 402：呢個模型要付費／credit 不足。\n\n👉 去「設定」按「查模型」揀有 🆓 嘅免費型號，或去 openrouter.ai 入 credit。\n伺服器原話：" + t.slice(0, 200));
-          throw new Error("HTTP " + r.status + "：" + t.slice(0, 320));
+          var _err = new Error(explainHttp(r.status, t));
+          _err.http = r.status;
+          _err.body = t;
+          _err.etype = errInfo(t, r.status).etype;
+          throw _err;
         }
         var d; try { d = JSON.parse(t); } catch (e) { AI_DEBUG.raw = t; throw new Error("回應非 JSON：" + t.slice(0, 200)); }
         if (S.style === "gemini") {
@@ -324,11 +386,13 @@ function callModel(parts, onNote) {
   var say = function (m) { if (typeof onNote === "function") onNote(m); };
   var attempt = function (k, lastErr) {
     if (k >= chain.length || k > 3) return Promise.reject(lastErr || new Error("冇可用模型"));
-    if (k > 0) say("⏳ " + chain[k - 1] + " 擠塞，自動改用 " + chain[k] + "…");
     return _postModel(parts, chain[k]).then(function (t) { used = chain[k]; return t; })
       .catch(function (e) {
-        var m = String((e && e.message) || "");
-        if (k + 1 < chain.length && k < 3 && isRateLimit(m) && !isDailyCap(m)) return attempt(k + 1, e);
+        var why = (e && e.http === 429) ? " 擠塞" : ((e && e.http === 403) ? " 被攔" : ((e && e.http) ? "（HTTP " + e.http + "）" : " 唔通"));
+        if (k + 1 < chain.length && k < 3 && isModelBlock(e)) {
+          say("⏳ " + chain[k] + why + "，自動改用 " + chain[k + 1] + "…");
+          return attempt(k + 1, e);
+        }
         throw e;
       });
   };
