@@ -1219,6 +1219,8 @@ function bind() {
       "模型：" + S.model + (looksTextOnly(S.model) ? "   ← ⚠️ 疑似純文字模型，睇唔到圖" : ""),
       "API Key：" + (S.key ? "已填（" + S.key.length + " 字）" : "未填"),
       "資料 repo：" + (S.repo || "未填") + "｜token：" + (S.token ? "已填" : "未填"),
+      "視窗：innerH=" + window.innerHeight + "｜視覺高度=" + (window.visualViewport ? Math.round(window.visualViewport.height) : "n/a")
+        + "｜#app=" + ($("app").style.height || "CSS") + "｜底部安全區=" + safeBottomPx() + "px",
       "網頁：" + location.href];
     callModel([{ text: 'Reply with exactly: {"ok":true}' }], function (m) { rep.push("自動轉型號：" + m); }).then(function (t) {
       rep.push("文字連線：✓ 成功 → " + (t || "").slice(0, 80));
@@ -1276,3 +1278,40 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
     navigator.serviceWorker.register("sw.js").catch(function () {});
   });
 }
+
+/* ───── 底部 tab bar 貼實裝置底部：用「真實可見高度」校正 ─────
+   iOS Safari 嘅 100dvh 喺底部工具列收起、或者「加到主畫面」之後會滯後／計錯高度，
+   令 #app 短咗幾十點 → tab bar 下面出現一片背景色空隙。
+   直接讀 visualViewport.height（＝用戶真正睇到嘅高度）嚟定 #app 高度。 */
+function safeBottomPx() {
+  var d = document.createElement("div");
+  d.style.cssText = "position:absolute;left:0;bottom:0;width:1px;height:1px;padding-bottom:env(safe-area-inset-bottom)";
+  document.body.appendChild(d);
+  var v = Math.round(parseFloat(getComputedStyle(d).paddingBottom) || 0);
+  if (d.parentNode) d.parentNode.removeChild(d);
+  return v;
+}
+function fitViewport() {
+  var app = document.getElementById("app");
+  if (!app) return;
+  var vv = window.visualViewport;
+  if (!vv || !vv.height) { app.style.height = ""; return; }        /* 舊瀏覽器 → 用 CSS 100dvh */
+  if (vv.scale && vv.scale > 1.05) return;                          /* 手指放大緊 → 唔理 */
+  var ae = document.activeElement, sh = document.getElementById("editSheet");
+  if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && sh && !sh.hidden) return; /* 鍵盤開住 */
+  var h = Math.round(vv.height);
+  if (h < 240) return;
+  if (window.navigator.standalone === true && window.screen && window.screen.height) {
+    var sc = Math.round(window.screen.height);
+    if (sc > h && sc - h < 140) h = sc;                              /* 加到主畫面：用全屏高度 */
+  }
+  app.style.height = h + "px";
+}
+window.addEventListener("resize", fitViewport);
+window.addEventListener("orientationchange", function () { setTimeout(fitViewport, 150); });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", fitViewport);
+  window.visualViewport.addEventListener("scroll", fitViewport);
+}
+fitViewport();
+[250, 900, 2400].forEach(function (t) { setTimeout(fitViewport, t); });
