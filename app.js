@@ -1303,11 +1303,12 @@ function fitViewport() {
   var ae = document.activeElement, sh = document.getElementById("editSheet");
   if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && sh && !sh.hidden) return; /* 鍵盤開住 */
   var h = Math.round(vv.height);
+  /* dvh 探針：Safari 底部工具列時 dvh 較細（= 真正可見高度，扣走工具列）；
+     加到主畫面（standalone）時兩者一樣 = 全屏。兩者取「細」→ 保證唔會切底。 */
+  var probe = document.getElementById("vhProbe");
+  var dh = probe ? probe.offsetHeight : 0;
+  if (dh > 120 && dh < h) h = dh;
   if (h < 240) return;
-  if (window.navigator.standalone === true && window.screen && window.screen.height) {
-    var sc = Math.round(window.screen.height);
-    if (sc > h && sc - h < 140) h = sc;                              /* 加到主畫面：用全屏高度 */
-  }
   app.style.height = h + "px";
 }
 window.addEventListener("resize", fitViewport);
