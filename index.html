@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <div id="app">
@@ -72,30 +72,31 @@
         <div class="set-h">AI 辨識設定</div>
         <label class="fld">服務商
           <select id="fProvider">
-            <option value="gemini">✅ Google Gemini（免費額度・可睇圖）</option>
-            <option value="openrouter">✅ OpenRouter（免費模型・可睇圖）</option>
-            <option value="openai">⚠️ OpenAI 官方（網頁直呼會被擋）</option>
-            <option value="custom">⚠️ 自訂（端點必須支援 CORS）</option>
+            <option value="openrouter">✅ OpenRouter ★推薦（香港可用・支援睇圖・免費）</option>
+            <option value="mistral">✅ Mistral AI（香港可用・支援睇圖・免費額度）</option>
+            <option value="qwen">✅ 阿里雲百鍊 Qwen 國際版（香港可用・支援睇圖）</option>
+            <option value="custom">自訂（進階：你嘅 OpenAI 相容端點）</option>
           </select>
         </label>
+        <div class="hint" id="keyHelp"></div>
         <label class="fld">Base URL<input id="fBase" type="url" placeholder="https://…/v1" autocapitalize="off" spellcheck="false"></label>
         <label class="fld">API Key<input id="fKey" type="password" placeholder="貼上 API key" autocapitalize="off" spellcheck="false"></label>
-        <label class="fld">模型<input id="fModel" type="text" placeholder="gemini-flash-latest" autocapitalize="off" spellcheck="false" list="models"></label>
+        <label class="fld">模型<input id="fModel" type="text" placeholder="google/gemma-4-31b-it:free" autocapitalize="off" spellcheck="false" list="models"></label>
         <datalist id="models">
-          <option value="gemini-flash-latest"></option>
-          <option value="gemini-3.8-flash"></option>
-          <option value="gemini-2.5-flash"></option>
-          <option value="google/gemini-2.5-flash"></option>
-          <option value="openai/gpt-4o-mini"></option>
-          <option value="anthropic/claude-3.5-sonnet"></option>
-          <option value="gpt-4o-mini"></option>
           <option value="google/gemma-4-31b-it:free"></option>
+          <option value="google/gemma-4-26b-a4b-it:free"></option>
           <option value="thinkingmachines/inkling:free"></option>
+          <option value="thinkingmachines/inkling-small:free"></option>
+          <option value="dots-studio/dots-3-note-preview:free"></option>
           <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"></option>
-          <option value="openrouter/free"></option>
+          <option value="mistral-small-latest"></option>
+          <option value="mistral-medium-latest"></option>
+          <option value="qwen3.8-max"></option>
+          <option value="qwen3.7-plus"></option>
         </datalist>
-        <div class="hint">⚠️ 模型必須 <b>支援睇圖</b>（讀收據要睇相）。純文字模型（例如 deepseek、gpt-3.5）會出現「AI 冇回傳 JSON」。唔肯定就按「查模型」，揀有 🖼 或 🆓 標記嘅。</div>
-        <div class="hint">🚫 <b>OpenAI 官方、DeepSeek 官方唔可以直接由網頁呼叫</b>（CORS），會出「Load failed」。請用 Gemini 或 OpenRouter；「自訂」端點亦必須支援 CORS。</div>
+        <div class="hint">🎯 呢個清單<b>只會列出「香港可用」＋「支援睇圖」＋「可由網頁直接呼叫」</b>嘅供應商／模型 —— 睇唔到圖或香港用唔到嘅，一律唔顯示。</div>
+        <div class="hint">🚫 已隱藏（用唔到）：<b>Google Gemini</b>（香港 IP 呼叫會被拒：<i>User location is not supported</i>）、<b>OpenAI 官方</b>（網頁直呼冇 CORS → Load failed）、<b>DeepSeek</b>（純文字，睇唔到圖）、Groq（未確認有睇圖模型）。</div>
+        <div class="hint">💡 想用 Gemini／GPT／Claude？喺 <b>OpenRouter</b> 開一個 key 就得 —— 佢係整合商，一個 key 乜模型都叫得到，而且香港用到。按「查模型」可以即時睇到有邊啲免費＋支援睇圖。</div>
         <div class="row">
           <button class="btn" id="btnTest">測試連線</button>
           <button class="btn" id="btnModels">查模型</button>
@@ -125,7 +126,7 @@
           <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
-        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v8</b>（如你見到唔係 v8，請重新載入）</div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v9</b>（如你見到唔係 v9，請重新載入）</div>
       </div>
     </section>
 
@@ -141,6 +142,6 @@
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
