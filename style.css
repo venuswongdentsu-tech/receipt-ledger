@@ -77,12 +77,21 @@ body{
 .item-amt{font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap}
 .item-sub{font-size:12px; color:var(--mut); margin-top:3px}
 .item-sub .hkd{color:var(--navy); font-weight:600}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
-.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px}
-label.f{font-size:11px; color:var(--mut); display:block}
+.grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px}
+/* ⚠ 一定要 minmax(0,1fr)：純 1fr 嘅最小闊度＝內容最小闊度，而 <input type=date> 內建最小闊度
+   好大 → 會撐爆欄位，令日期同商店兩格重疊／商店文字被切。 */
+.grid3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:8px}
+label.f{font-size:11px; color:var(--mut); display:block; min-width:0}
 label.f input,label.f select{
-  width:100%; margin-top:2px; padding:8px; font-size:14px; border:1px solid var(--line);
-  border-radius:8px; background:#fff; color:var(--txt); font-family:inherit;
+  width:100%; min-width:0; max-width:100%; margin-top:2px; padding:8px; font-size:14px;
+  border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--txt); font-family:inherit;
+}
+label.f input[type=date]{padding-left:6px; padding-right:6px}
+label.f input[type=text]{text-overflow:ellipsis}
+/* 窄機（手機 ≤400px）：第二行改「類別｜日期」兩欄，商店獨佔一行 → 唔會再重疊 */
+@media (max-width:400px){
+  .grid3.grid3-wide{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid3.grid3-wide label.f.f-wide{grid-column:1/-1}
 }
 .item-act{display:flex; gap:8px; margin-top:10px; justify-content:flex-end}
 .cat-pill{display:inline-block; background:var(--light); color:var(--navy); border-radius:999px; padding:2px 9px; font-size:11px; font-weight:700}
