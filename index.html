@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 <div id="app">
@@ -79,7 +79,10 @@
             <option value="custom">自訂（進階：你嘅 OpenAI 相容端點）</option>
           </select>
         </label>
-        <div class="hint" id="keyHelp"></div>
+        <details class="fold">
+          <summary>🔑 拎 API key／供應商說明</summary>
+          <div class="hint" id="keyHelp"></div>
+        </details>
         <label class="fld">Base URL<input id="fBase" type="url" placeholder="https://…/v1" autocapitalize="off" spellcheck="false"></label>
         <label class="fld">API Key<input id="fKey" type="password" placeholder="貼上 API key" autocapitalize="off" spellcheck="false"></label>
         <label class="fld">模型<input id="fModel" type="text" placeholder="thinkingmachines/inkling-small:free" autocapitalize="off" spellcheck="false" list="models"></label>
@@ -98,12 +101,15 @@
           <option value="qwen3.8-max"></option>
           <option value="qwen3.7-plus"></option>
         </datalist>
-        <div class="hint">🎯 呢個清單<b>只會列出「香港可用」＋「支援睇圖」＋「可由網頁直接呼叫」</b>嘅供應商／模型 —— 睇唔到圖或香港用唔到嘅，一律唔顯示。</div>
-        <div class="hint">🇭🇰 <b>香港注意</b>：<code>google/*</code> 模型（gemma…）由 <b>Google AI Studio</b> 執行 —— <b>封鎖香港 IP</b>，會回 <i>User location is not supported</i>，即使繞經 OpenRouter 都一樣。所以預設已改用<b>非 Google</b> 模型（thinkingmachines/inkling-small）。清單入面標咗 <b style="color:#c00">⚠️ 香港用唔到</b> 嘅就唔好揀。</div>
-        <div class="hint">🤖 <b>實測可用型號（2026-10 核實）</b>：<br>✅ <b>免費</b>：<code>thinkingmachines/inkling-small:free</code>（首選）、<code>dots-studio/dots-3-note-preview:free</code>、<code>thinkingmachines/inkling:free</code>、<code>nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free</code><br>💰 <b>要 credit（較穩）</b>：<code>deepseek/deepseek-v4.1-flash</code>、<code>mistralai/mistral-small-2603</code>、<code>qwen/qwen3.8-max</code><br>❌ <b>睇唔到圖</b>：<code>deepseek-chat</code>、<code>deepseek-r1</code>、<code>deepseek-v3.2</code> 等舊型號（純文字）</div>
-        <div class="hint">🚫 已隱藏（用唔到）：<b>Google Gemini</b>（香港 IP 呼叫會被拒：<i>User location is not supported</i>）、<b>OpenAI 官方</b>（網頁直呼冇 CORS → Load failed）、<b>DeepSeek 官方 API</b>（舊型號純文字；要用 DeepSeek 睇圖 → 經 OpenRouter 揀 <code>deepseek/deepseek-v4.1-flash</code>）、Groq（未確認有睇圖模型）。</div>
-        <div class="hint">🛡️ 見到 <b>HTTP 403</b>？代表你條 OpenRouter key 有效但被攔 —— 最常見係 key 設咗 <b>Credit limit</b>（去 openrouter.ai/settings/keys 改 Unlimited），或內容過濾。<br>🚦 免費模型有機會擠塞（HTTP 429）—— App 會<b>自動轉下一個免費睇圖模型</b>再試。免費額度：20 次/分鐘、50 次/日（全帳號計）。想日日穩定用：去 openrouter.ai 入 US$10 credits 即升到 <b>1000 次/日</b>。</div>
-        <div class="hint">💡 想用 Gemini／GPT／Claude？喺 <b>OpenRouter</b> 開一個 key 就得 —— 佢係整合商，一個 key 乜模型都叫得到，而且香港用到。按「查模型」可以即時睇到有邊啲免費＋支援睇圖。</div>
+        <details class="fold">
+          <summary>ℹ️ 模型／香港／額度 提示（撳一下展開）</summary>
+          <div class="hint">🎯 呢個清單<b>只會列出「香港可用」＋「支援睇圖」＋「可由網頁直接呼叫」</b>嘅供應商／模型 —— 睇唔到圖或香港用唔到嘅，一律唔顯示。</div>
+          <div class="hint">🇭🇰 <b>香港注意</b>：<code>google/*</code> 模型（gemma…）由 <b>Google AI Studio</b> 執行 —— <b>封鎖香港 IP</b>，會回 <i>User location is not supported</i>，即使繞經 OpenRouter 都一樣。所以預設已改用<b>非 Google</b> 模型（thinkingmachines/inkling-small）。清單入面標咗 <b style="color:#c00">⚠️ 香港用唔到</b> 嘅就唔好揀。</div>
+          <div class="hint">🤖 <b>實測可用型號（2026-10 核實）</b>：<br>✅ <b>免費</b>：<code>thinkingmachines/inkling-small:free</code>（首選）、<code>dots-studio/dots-3-note-preview:free</code>、<code>thinkingmachines/inkling:free</code>、<code>nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free</code><br>💰 <b>要 credit（較穩）</b>：<code>deepseek/deepseek-v4.1-flash</code>、<code>mistralai/mistral-small-2603</code>、<code>qwen/qwen3.8-max</code><br>❌ <b>睇唔到圖</b>：<code>deepseek-chat</code>、<code>deepseek-r1</code>、<code>deepseek-v3.2</code> 等舊型號（純文字）</div>
+          <div class="hint">🚫 已隱藏（用唔到）：<b>Google Gemini</b>（香港 IP 呼叫會被拒：<i>User location is not supported</i>）、<b>OpenAI 官方</b>（網頁直呼冇 CORS → Load failed）、<b>DeepSeek 官方 API</b>（舊型號純文字；要用 DeepSeek 睇圖 → 經 OpenRouter 揀 <code>deepseek/deepseek-v4.1-flash</code>）、Groq（未確認有睇圖模型）。</div>
+          <div class="hint">🛡️ 見到 <b>HTTP 403</b>？代表你條 OpenRouter key 有效但被攔 —— 最常見係 key 設咗 <b>Credit limit</b>（去 openrouter.ai/settings/keys 改 Unlimited），或內容過濾。<br>🚦 免費模型有機會擠塞（HTTP 429）—— App 會<b>自動轉下一個免費睇圖模型</b>再試。免費額度：20 次/分鐘、50 次/日（全帳號計）。想日日穩定用：去 openrouter.ai 入 US$10 credits 即升到 <b>1000 次/日</b>。</div>
+          <div class="hint">💡 想用 Gemini／GPT／Claude？喺 <b>OpenRouter</b> 開一個 key 就得 —— 佢係整合商，一個 key 乜模型都叫得到，而且香港用到。按「查模型」可以即時睇到有邊啲免費＋支援睇圖。</div>
+        </details>
         <div class="row">
           <button class="btn" id="btnTest">測試連線</button>
           <button class="btn" id="btnModels">查模型</button>
@@ -115,7 +121,10 @@
 
       <div class="card">
         <div class="set-h">私有資料庫（GitHub）</div>
-        <div class="set-p">帳簿同收據相片放喺你自己嘅 GitHub <b>私有 repo</b>。需要一個有該 repo <b>Contents: Read and write</b> 權限嘅 fine-grained token。Token 只存喺你部手機，唔會上傳。</div>
+        <details class="fold">
+          <summary>ℹ️ 點設定 GitHub 私有 repo？（撳一下展開）</summary>
+                  <div class="set-p">帳簿同收據相片放喺你自己嘅 GitHub <b>私有 repo</b>。需要一個有該 repo <b>Contents: Read and write</b> 權限嘅 fine-grained token。Token 只存喺你部手機，唔會上傳。</div>
+        </details>
         <label class="fld">資料 repo（owner/name）<input id="fRepo" type="text" placeholder="your-name/receipt-ledger-data" autocapitalize="off" spellcheck="false"></label>
         <label class="fld">GitHub Token<input id="fToken" type="password" placeholder="github_pat_…" autocapitalize="off" spellcheck="false"></label>
         <div class="row">
@@ -133,7 +142,7 @@
           <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
-        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v17</b>（如你見到唔係 v17，請重新載入）</div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v18</b>（如你見到唔係 v18，請重新載入）</div>
       </div>
     </section>
 
@@ -158,6 +167,6 @@
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
