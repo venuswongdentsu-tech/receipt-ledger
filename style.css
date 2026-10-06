@@ -6,10 +6,12 @@
 html,body{margin:0;padding:0;height:100%;overflow:hidden}
 body{
   font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang HK","Noto Sans TC","Microsoft JhengHei",sans-serif;
-  color:var(--txt); background:var(--bg);
+  color:var(--txt); background:#fff;   /* bar 下面（Safari 工具列區）用白色，睇落似 bar 接住落去 */
   overscroll-behavior-y:none;
 }
 #app{height:100%; height:100dvh; display:flex; flex-direction:column}
+/* dvh 探針：量 CSS 100dvh 實際值（Safari 底部工具列會扣走）→ 同 visualViewport 取細 */
+#vhProbe{position:fixed; top:0; left:0; width:0; height:100dvh; pointer-events:none; visibility:hidden; z-index:-1}
 
 /* header */
 .hd{
@@ -29,6 +31,7 @@ body{
    遮罩同所有 panel 會一齊顯示，畫面卡住喺「處理中」）。以下一行強制 hidden 生效。 */
 [hidden]{display:none !important}
 #views{flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--bg);
   overscroll-behavior:contain; padding:14px 14px calc(20px + env(safe-area-inset-bottom))}
 .view{display:block; max-width:720px; width:100%; margin:0 auto}
 .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
