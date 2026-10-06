@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <div id="app">
@@ -51,6 +51,7 @@
       <div id="pendEmpty" class="empty">暫無待確認項目。<br>去「上傳」影張收據啦。</div>
       <div class="pend-bar" id="pendBar" hidden>
         <button class="btn btn-primary" id="btnCommitAll">全部入帳</button>
+        <button class="btn btn-danger" id="btnClearAll">全部刪除</button>
       </div>
     </section>
 
@@ -132,7 +133,7 @@
           <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
-        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v14</b>（如你見到唔係 v14，請重新載入）</div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v15</b>（如你見到唔係 v15，請重新載入）</div>
       </div>
     </section>
 
@@ -145,9 +146,18 @@
     <button class="tab" data-v="set"><span>⚙️</span>設定</button>
   </nav>
 
+  <div class="sheet" id="editSheet" hidden>
+    <div class="sheet-top">
+      <button class="btn btn-sm" id="edCancel">取消</button>
+      <div class="sheet-t" id="edTitle">編輯明細</div>
+      <button class="btn btn-sm btn-primary" id="edSave">儲存</button>
+    </div>
+    <div class="sheet-body" id="edBody"></div>
+  </div>
+
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
