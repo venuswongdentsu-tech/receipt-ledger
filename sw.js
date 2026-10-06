@@ -1,5 +1,5 @@
 /* 個人記帳 — offline shell (識別／同步一律走網路，只快取介面) */
-var CACHE = "ra-shell-v3";
+var CACHE = "ra-shell-v4";
 var SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
              "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
