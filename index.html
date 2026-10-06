@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<title>個人記帳</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3864">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="記帳">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="hd">
+    <div class="hd-l">
+      <div class="hd-t">個人記帳</div>
+      <div class="hd-s" id="hdSub">載入中…</div>
+    </div>
+    <div class="hd-r">
+      <div class="hd-total" id="hdTotal">—</div>
+      <div class="hd-hkd">HKD 總支出</div>
+    </div>
+  </header>
+
+  <main id="views">
+
+    <!-- ── 上傳 ── -->
+    <section class="view" id="v-up">
+      <div class="card up-card">
+        <div class="up-ico">📷</div>
+        <div class="up-h">影相／揀收據</div>
+        <div class="up-p">支援 JPG・PNG・HEIC・PDF，可一次多張</div>
+        <button class="btn btn-primary btn-lg" id="btnPick">選擇收據相片</button>
+        <input type="file" id="file" accept="image/*,application/pdf" multiple hidden>
+        <div class="up-note">辨識由你設定嘅 AI 直接喺手機完成，唔會經過第三方伺服器。</div>
+      </div>
+      <div id="upQueue" class="queue"></div>
+      <div class="sec-h" id="recentH" hidden>最近收據</div>
+      <div id="recent" class="recent"></div>
+    </section>
+
+    <!-- ── 待確認 ── -->
+    <section class="view" id="v-pend" hidden>
+      <div id="pendList" class="pend-list"></div>
+      <div id="pendEmpty" class="empty">暫無待確認項目。<br>去「上傳」影張收據啦。</div>
+      <div class="pend-bar" id="pendBar" hidden>
+        <button class="btn btn-primary" id="btnCommitAll">全部入帳</button>
+      </div>
+    </section>
+
+    <!-- ── 明細 ── -->
+    <section class="view" id="v-led" hidden>
+      <div class="tools">
+        <button class="btn" id="btnSync">↻ 同步</button>
+        <button class="btn" id="btnTr">🌐 譯成中文</button>
+        <button class="btn" id="btnXlsx">⬇ 下載 Excel</button>
+      </div>
+      <div id="ledStats" class="stats"></div>
+      <div id="ledList" class="led-list"></div>
+      <div id="ledEmpty" class="empty">帳簿空空如也。<br>上傳第一張收據開始記帳。</div>
+    </section>
+
+    <!-- ── 設定 ── -->
+    <section class="view" id="v-set" hidden>
+      <div class="card">
+        <div class="set-h">AI 辨識設定</div>
+        <label class="fld">服務商
+          <select id="fProvider">
+            <option value="gemini">Google Gemini（有免費額度）</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="openai">OpenAI</option>
+            <option value="custom">自訂（OpenAI 相容端點）</option>
+          </select>
+        </label>
+        <label class="fld">Base URL<input id="fBase" type="url" placeholder="https://…/v1" autocapitalize="off" spellcheck="false"></label>
+        <label class="fld">API Key<input id="fKey" type="password" placeholder="貼上 API key" autocapitalize="off" spellcheck="false"></label>
+        <label class="fld">模型<input id="fModel" type="text" placeholder="gemini-flash-latest" autocapitalize="off" spellcheck="false" list="models"></label>
+        <datalist id="models">
+          <option value="gemini-flash-latest"></option>
+          <option value="gemini-3.8-flash"></option>
+          <option value="gemini-2.5-flash"></option>
+          <option value="google/gemini-2.5-flash"></option>
+          <option value="openai/gpt-4o-mini"></option>
+          <option value="anthropic/claude-3.5-sonnet"></option>
+          <option value="gpt-4o-mini"></option>
+        </datalist>
+        <div class="row">
+          <button class="btn" id="btnTest">測試連線</button>
+          <button class="btn" id="btnModels">查模型</button>
+        </div>
+        <div class="hint" id="testOut"></div>
+        <div class="hint" id="modelOut"></div>
+      </div>
+
+      <div class="card">
+        <div class="set-h">私有資料庫（GitHub）</div>
+        <div class="set-p">帳簿同收據相片放喺你自己嘅 GitHub <b>私有 repo</b>。需要一個有該 repo <b>Contents: Read and write</b> 權限嘅 fine-grained token。Token 只存喺你部手機，唔會上傳。</div>
+        <label class="fld">資料 repo（owner/name）<input id="fRepo" type="text" placeholder="your-name/receipt-ledger-data" autocapitalize="off" spellcheck="false"></label>
+        <label class="fld">GitHub Token<input id="fToken" type="password" placeholder="github_pat_…" autocapitalize="off" spellcheck="false"></label>
+        <div class="row">
+          <button class="btn" id="btnGhTest">測試資料庫</button>
+          <span class="hint" id="ghOut"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="set-h">其他</div>
+        <label class="fld">匯率（1 外幣 = ? HKD，空白＝自動）<input id="fRates" type="text" placeholder="自動由網路更新" autocapitalize="off" spellcheck="false"></label>
+        <div class="row">
+          <button class="btn btn-primary" id="btnSave">儲存設定</button>
+          <button class="btn btn-danger" id="btnWipe">清除本機快取</button>
+        </div>
+        <div class="set-p" id="about"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tabs">
+    <button class="tab is-on" data-v="up"><span>📷</span>上傳</button>
+    <button class="tab" data-v="pend"><span>📝</span>待確認<i class="badge" id="pendBadge" hidden>0</i></button>
+    <button class="tab" data-v="led"><span>📒</span>明細</button>
+    <button class="tab" data-v="set"><span>⚙️</span>設定</button>
+  </nav>
+
+  <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
