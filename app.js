@@ -25,7 +25,7 @@ var CAT_ALIAS = { "餐飲美食": "餐飲", "飲食": "餐飲", "餐廳": "餐�
 var PROVIDERS = {
   openrouter: {
     style: "openai", base: "https://openrouter.ai/api/v1",
-    model: "google/gemma-4-26b-a4b-it:free",   /* 實測 uptime 較高 */
+    model: "thinkingmachines/inkling-small:free",   /* 非 Google 上游（香港通）＋uptime 99.9% */
     label: "OpenRouter",
     note: "香港可用・支援睇圖・有免費模型（50 次/日）",
     keyUrl: "https://openrouter.ai/keys",
@@ -226,37 +226,49 @@ function loadRates(force) {
 /* ───────────────────────── AI 呼叫 ───────────────────────── */
 var AI_DEBUG = null;   /* 出錯時用嚟顯示真正原因（模型、finish_reason、原話） */
 
-/* v10：OpenRouter 免費＋支援睇圖嘅模型（按實測 uptime 排序）；擠塞(429)時自動輪住試 */
+/* v12：查過每個免費睇圖模型嘅上游供應商 —— google/* 全部由「Google AI Studio」執行，
+   而 Google AI Studio 封鎖香港 IP（回 400 User location is not supported），所以預設同自動轉換鏈
+   一律優先非 Google 模型；Google 系只留作最後後備（香港以外地方仍可用）。 */
 var FREE_FALLBACK = [
-  "google/gemma-4-26b-a4b-it:free",
-  "thinkingmachines/inkling-small:free",
-  "dots-studio/dots-3-note-preview:free",
-  "google/gemma-4-31b-it:free",
-  "thinkingmachines/inkling:free"
+  "thinkingmachines/inkling-small:free",                 /* Thinking Machines｜uptime 99.9% */
+  "dots-studio/dots-3-note-preview:free",                /* AtlasCloud｜99.6% */
+  "thinkingmachines/inkling:free",                       /* Thinking Machines｜99.3% */
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",  /* Nvidia｜74.7%（後備）*/
+  "google/gemma-4-26b-a4b-it:free",                      /* Google AI Studio —— 香港用唔到，最後後備 */
+  "google/gemma-4-31b-it:free"
 ];
+var HK_BLOCKED_RX = /^google\//i;   /* Google 系：香港 IP 一律被封鎖 */
 var MODEL_NOTE = "";
 
 function isRateLimit(txt, status) { return status === 429 || /rate.?limit|too many requests|\b429\b/i.test(txt || ""); }
 function isDailyCap(txt) { return /free-models?-per-day|add .{0,14}credit|per day|每日/i.test(txt || ""); }
 
-/* 由 OpenAI／OpenRouter 錯誤體抽出真正原因（message / error_type / code） */
-function errInfo(txt, status) {
-  var msg = "", etype = "", code = status || "", t = String(txt || "");
-  try {
-    var j = JSON.parse(t), e = (j && (j.error || j)) || {};
-    if (typeof e === "string") msg = e;
-    else {
-      msg = e.message || e.detail || "";
-      if (e.code) code = e.code;
-      if (e.error_type) etype = e.error_type;
-      if (e.metadata) {
-        if (e.metadata.error_type) etype = e.metadata.error_type;
-        if (e.metadata.provider_code) etype = (etype ? etype + " / " : "") + e.metadata.provider_code;
-        if (e.metadata.raw) msg = msg + " " + String(e.metadata.raw).slice(0, 120);
-      }
+/* 由 OpenAI／OpenRouter 錯誤體抽出真正原因（message / error_type / 上游供應商）
+   v12：OpenRouter 會把上游供應商嘅原文放喺 metadata.raw（一層嵌套 JSON 字串），要鑽入去攞。*/
+function _digErr(o, depth) {
+  if (o == null || depth > 8) return { msg: "", etype: "" };
+  if (typeof o === "string") {
+    var s = o.trim();
+    if (s && (s.charAt(0) === "{" || s.charAt(0) === "[")) {
+      try { return _digErr(JSON.parse(s), depth + 1); } catch (e) { return { msg: s, etype: "" }; }
     }
-  } catch (e2) { msg = t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 300); }
-  return { msg: (msg || t.slice(0, 300)).replace(/\s+/g, " ").trim(), etype: etype, code: code };
+    return { msg: s, etype: "" };
+  }
+  var msg = o.message || o.detail || o.error || "", et = o.error_type || o.type || o.status || "";
+  if (msg && typeof msg === "object") return _digErr(msg, depth + 1);
+  var md = o.metadata || {};
+  if (md.provider_name) et = (et ? et + " / " : "") + md.provider_name;
+  if (md.error_type && md.error_type !== et) et = (et ? et + " / " : "") + md.error_type;
+  if (md.provider_code && String(md.provider_code) !== String(et)) et = (et ? et + " / " : "") + md.provider_code;
+  var sub = _digErr(md.raw, depth + 1);
+  if (sub.msg && (!msg || /provider returned error/i.test(String(msg)))) msg = sub.msg;
+  if (sub.etype && String(et).indexOf(sub.etype) < 0) et = (et ? et + " / " : "") + sub.etype;
+  return { msg: String(msg || ""), etype: String(et || "") };
+}
+function errInfo(txt, status) {
+  var t = String(txt || ""), info = _digErr(t, 0);
+  if (!info.msg) info.msg = t.replace(/<[^>]*>/g, " ").slice(0, 300);
+  return { msg: info.msg.replace(/\s+/g, " ").trim(), etype: info.etype, code: status || "" };
 }
 
 /* 錯咗之後，畀人話得明嘅解釋（唔使查 Google 都知點做） */
@@ -264,7 +276,11 @@ function explainHttp(status, txt) {
   var i = errInfo(txt, status), m = i.msg || "", et = i.etype || "";
   var L = ["❌ HTTP " + (i.code || status) + (et ? "（" + et + "）" : "") + "：" + m];
   if (status === 429) return rateLimitMsg(txt, status);
-  if (status === 401)
+  if (/location is not supported|not supported for the api use|failed_precondition/i.test(m + " " + et)) {
+    L.push("\n👉 **上游供應商封鎖香港 IP** —— 呢個模型（" + (S.model || "") + "）由「" +
+      (et || "Google AI Studio") + "」執行，香港用唔到。\n解決：設定 →「查模型」揀唔經 Google 嘅免費睇圖模型 —— **thinkingmachines/inkling-small:free**、**dots-studio/dots-3-note-preview:free**、**thinkingmachines/inkling:free**。App 亦會自動幫你轉。");
+  }
+  else if (status === 401)
     L.push("\n👉 401 ＝ API Key 無效／未生效。去「設定」重新貼一次 key（OpenRouter key 開頭係 sk-or-）。");
   else if (status === 402)
     L.push("\n👉 402 ＝ 唔夠 credit。去 openrouter.ai/settings/credits 入錢，或改用免費（:free）型號。");
@@ -293,10 +309,11 @@ function isModelBlock(e) {
   var blob = (info.msg + " " + info.etype + " " + t).toLowerCase();
   if (st === 401 || st === 402 || st === 404) return false;
   if (/key[_ ]?limit|credit[_ ]?limit|insufficient|no auth|user not found|invalid api key|unauthorized|not enough credit/.test(blob)) return false;
-  if (/free-models?-per-day|per day|每日/.test(blob)) return false;   /* 帳戶級日限：轉型號都冇用 */
+  if (/free-models?-per-day|requests per day|每日/.test(blob)) return false;   /* 帳戶級日限：轉型號都冇用 */
+  if (/location is not supported|not supported for the api use|failed_precondition|provider returned error/.test(blob)) return true; /* 上游地區封鎖／供應商出錯 → 換型號 */
   if (/content|safety|policy|moderation|refus|guardrail|injection|blocked/.test(blob)) return true;
-  if (/no endpoints|not available|unsupported|region|capacity|rate.?limit|overload|unavailable|timeout|upstream|no healthy/.test(blob)) return true;
-  return st === 429 || st === 502 || st === 503 || st === 504 || st === 529;
+  if (/no endpoints|not available|not supported|unsupported|region|capacity|rate.?limit|overload|unavailable|timeout|upstream|no healthy|provider/.test(blob)) return true;
+  return st === 429 || st === 500 || st === 502 || st === 503 || st === 504 || st === 529;
 }
 function rateLimitMsg(txt, status) {
   var cap = isDailyCap(txt);
@@ -1062,6 +1079,8 @@ function bind() {
           return /:free$/i.test(n) || /vl|vision|omni|gemma|inkling|nemotron|dots-|pixtral|mistral-(small|medium|large)-(latest|2\d{3})|qwen3\./i.test(n);
         });
         nice.sort(function (a, b) {
+          var ga = HK_BLOCKED_RX.test(a) ? 1 : 0, gb = HK_BLOCKED_RX.test(b) ? 1 : 0;
+          if (ga !== gb) return ga - gb;   /* 非 Google（香港用得到）排前面 */
           var fa = /:free$/i.test(a) ? 0 : 1, fb = /:free$/i.test(b) ? 0 : 1;
           if (fa !== fb) return fa - fb;
           return a < b ? -1 : 1;
@@ -1074,7 +1093,8 @@ function bind() {
         o.className = "hint ok";
         o.innerHTML = "✅ 支援睇圖（讀到收據）——按一下填入，🆓 = 免費：<br>" +
           show.map(function (n) {
-            return '<a href="#" class="mlink" data-m="' + n + '">' + (/:free$/i.test(n) ? "🆓 " : "🖼 ") + n + "</a>";
+            return '<a href="#" class="mlink" data-m="' + n + '">' + (/:free$/i.test(n) ? "🆓 " : "🖼 ") + n +
+              (HK_BLOCKED_RX.test(n) ? ' <b style="color:#c00">⚠️ 香港用唔到（Google 封鎖香港 IP）</b>' : "") + "</a>";
           }).join("<br>") +
           (hidden > 0 ? '<br><span style="opacity:.65">（已隱藏 ' + hidden + " 個唔支援睇圖嘅模型）</span>" : "") +
           (caveat ? '<br><b>⚠️ 呢個供應商未能自動確認邊啲支援睇圖</b>，請揀型號名有 vl／vision／omni 字樣嘅。' : "");
