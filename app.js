@@ -669,11 +669,28 @@ function renderHeader() {
   $("pendEmpty").hidden = pending.length > 0;
 }
 
-function itemCard(r, mode) {
+/* 可編輯欄位（待確認卡 + 編輯彈層共用） */
+function fieldGrid(r) {
   var opts = CATS.map(function (c) {
     return '<option value="' + c + '"' + (c === r.category ? " selected" : "") + ">" + c + "</option>"; }).join("");
   var curOpts = Object.keys(DEFAULT_RATES).concat(["JPY", "CNY"]).filter(function (c, i, a) { return a.indexOf(c) === i; })
     .map(function (c) { return '<option value="' + c + '"' + (c === r.currency ? " selected" : "") + ">" + c + "</option>"; }).join("");
+  return '<div class="grid3">'
+    + '<label class="f">數量<input type="number" step="any" data-k="qty" value="' + (r.qty || 1) + '"></label>'
+    + '<label class="f">金額<input type="number" step="any" data-k="amount" value="' + (r.amount || 0) + '"></label>'
+    + '<label class="f">幣別<select data-k="currency">' + curOpts + "</select></label></div>"
+    + '<div class="grid3 grid3-wide">'
+    + '<label class="f">類別<select data-k="category">' + opts + "</select></label>"
+    + '<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>'
+    + '<label class="f f-wide">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
+}
+/* 唯讀一行（明細卡：完全冇輸入格 → 一定唔會重疊） */
+function roLine(r) {
+  var b = ["數量 " + (r.qty || 1), "幣別 " + esc(r.currency || "HKD")];
+  if (r.note) b.push("備註 " + esc(r.note));
+  return '<div class="ro">' + b.join(" · ") + "</div>";
+}
+function itemCard(r, mode) {
   var alt = r.product_original && r.product_original !== r.product
     ? '<div class="item-alt">原文：' + esc(r.product_original) + "</div>" : "";
   var head = '<div class="item-top"><div class="item-name">' + esc(r.product || "（未命名）") + alt + "</div>"
@@ -683,21 +700,42 @@ function itemCard(r, mode) {
     + (r.store ? " · " + esc(r.store) : "") + ' · <span class="hkd">≈ HK$' + money(r.hkd) + "</span>"
     + ' · <span class="cat-pill">' + esc(r.category) + "</span></div>";
 
-  var fields = '<div class="grid3">'
-    + '<label class="f">數量<input type="number" step="any" data-k="qty" value="' + (r.qty || 1) + '"></label>'
-    + '<label class="f">金額<input type="number" step="any" data-k="amount" value="' + (r.amount || 0) + '"></label>'
-    + '<label class="f">幣別<select data-k="currency">' + curOpts + "</select></label></div>"
-    + '<div class="grid3 grid3-wide">'
-    + '<label class="f">類別<select data-k="category">' + opts + "</select></label>"
-    + '<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>'
-    + '<label class="f f-wide">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
+  var fields = mode === "led" ? roLine(r) : fieldGrid(r);
 
   var act = mode === "pend"
     ? '<div class="item-act"><button class="btn btn-sm" data-act="p-del">刪除</button>'
       + '<button class="btn btn-sm btn-primary" data-act="p-ok">入帳</button></div>'
-    : '<div class="item-act"><button class="btn btn-sm btn-danger" data-act="l-del">刪除</button></div>';
+    : '<div class="item-act"><button class="btn btn-sm" data-act="l-edit">✏️ 編輯</button>'
+      + '<button class="btn btn-sm btn-danger" data-act="l-del">刪除</button></div>';
 
   return '<div class="item" data-id="' + esc(r.id) + '" data-mode="' + mode + '">' + head + fields + act + "</div>";
+}
+
+/* ───────── 編輯彈層（明細卡按「編輯」先開；可儲存／取消） ───────── */
+var edId = null, edDraft = null;
+function openEdit(id) {
+  var r = items.filter(function (x) { return x.id === id; })[0]; if (!r) return;
+  edId = id; edDraft = JSON.parse(JSON.stringify(r));
+  $("edTitle").textContent = r.product || "編輯明細";
+  $("edBody").innerHTML = fieldGrid(edDraft)
+    + '<div class="hint" style="margin-top:12px">改完按右上角「儲存」；按「取消」就唔會改到。'
+    + (r.product_original && r.product_original !== r.product ? "<br>原文：" + esc(r.product_original) : "")
+    + "</div>";
+  $("editSheet").hidden = false;
+  document.body.style.overflow = "hidden";
+}
+function closeEdit() {
+  $("editSheet").hidden = true; edId = null; edDraft = null;
+  document.body.style.overflow = "";
+}
+function saveEdit() {
+  var r = items.filter(function (x) { return x.id === edId; })[0];
+  if (!r || !edDraft) { closeEdit(); return; }
+  ["qty", "amount", "currency", "category", "date", "store"].forEach(function (k) {
+    applyEdit(r, k, edDraft[k]);
+  });
+  saveLocal(); renderLedger(); closeEdit(); toast("已儲存");
+  pushLedger().catch(function () { toast("已儲存（本機；未同步）"); });
 }
 
 function renderPending() {
@@ -706,7 +744,9 @@ function renderPending() {
 }
 function renderLedger() {
   var sorted = items.slice().sort(function (a, b) {
-    return (a.date + (a.time || "")) < (b.date + (b.time || "")) ? 1 : -1; });
+    var ka = a.date + (a.time || ""), kb = b.date + (b.time || "");
+    if (ka === kb) return (String(a.id) < String(b.id) ? 1 : -1);   /* 時間一樣時用 id 排，唔會跳位 */
+    return ka < kb ? 1 : -1; });
   $("ledList").innerHTML = sorted.map(function (r) { return itemCard(r, "led"); }).join("");
   $("ledEmpty").hidden = sorted.length > 0;
 
@@ -943,10 +983,16 @@ function bind() {
     t.closest(".item").querySelector(".hkd") ; renderPending();
   });
   $("btnCommitAll").addEventListener("click", commitPending);
+  $("btnClearAll").addEventListener("click", function () {
+    if (!pending.length) return;
+    if (!confirm("確定刪除全部 " + pending.length + " 項待確認項目？（已入帳嘅唔受影響）")) return;
+    pending = []; saveLocal(); renderPending(); toast("已刪除全部待確認項目");
+  });
 
   $("ledList").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-act]"); if (!b) return;
     var id = b.closest(".item").getAttribute("data-id");
+    if (b.getAttribute("data-act") === "l-edit") { openEdit(id); return; }
     if (b.getAttribute("data-act") === "l-del") {
       if (!confirm("確定刪除這筆？")) return;
       items = items.filter(function (x) { return x.id !== id; });
@@ -968,6 +1014,17 @@ function bind() {
     pullLedger().then(function (ok) { ov(false); loadRecent(); toast(ok ? "已同步" : "GitHub 未設定／冇 ledger.json"); })
       .catch(function (e) { ov(false); toast("同步失敗：" + e.message, true); });
   });
+  /* 編輯彈層 */
+  $("edCancel").addEventListener("click", closeEdit);
+  $("edSave").addEventListener("click", saveEdit);
+  ["change", "input"].forEach(function (ev) {
+    $("edBody").addEventListener(ev, function (e) {
+      var k = e.target && e.target.getAttribute && e.target.getAttribute("data-k");
+      if (!k || !edDraft) return;
+      applyEdit(edDraft, k, e.target.value);
+    });
+  });
+
   $("btnXlsx").addEventListener("click", exportXlsx);
   $("btnTr").addEventListener("click", function () {
     var need = items.filter(function (r) { return needsTranslation(r.product_original || r.product); });
