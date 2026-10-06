@@ -21,7 +21,7 @@ var CAT_ALIAS = { "餐飲美食": "餐飲", "飲食": "餐飲", "餐廳": "餐�
 
 var PROVIDERS = {
   gemini: { style: "gemini", base: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-flash-latest" },
-  openrouter: { style: "openai", base: "https://openrouter.ai/api/v1", model: "google/gemini-2.5-flash" },
+  openrouter: { style: "openai", base: "https://openrouter.ai/api/v1", model: "google/gemma-4-31b-it:free" },
   openai: { style: "openai", base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   custom: { style: "openai", base: "", model: "" }
 };
@@ -817,7 +817,11 @@ function bind() {
         });
         else if (d.data) d.data.forEach(function (m) { names.push(m.id); });
         if (!names.length) throw new Error("冇列出模型");
-        var nice = names.filter(function (n) { return /flash|gemini|gpt|claude/i.test(n); });
+        var nice = names.filter(function (n) {
+          return /:free$/i.test(n) || /flash|gemini|gemma|gpt-|claude|qwen|inkling|nemotron|dots-/i.test(n);
+        });
+        /* 免費模型（:free）排最前，方便慳錢 */
+        nice.sort(function (a, b) { return (/:free$/i.test(b) ? 1 : 0) - (/:free$/i.test(a) ? 1 : 0); });
         var show = (nice.length ? nice : names).slice(0, 40);
         var dl = $("models");
         if (dl) dl.innerHTML = show.map(function (n) { return '<option value="' + n + '"></option>'; }).join("");
