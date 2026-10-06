@@ -25,6 +25,9 @@ body{
 .hd-hkd{font-size:11px; opacity:.8}
 
 /* views */
+/* ⚠ 關鍵：唔可以有 rule 直接用 display 蓋過 hidden 屬性（.view{display:block} / .overlay{display:flex} 會令 [hidden] 失效，
+   遮罩同所有 panel 會一齊顯示，畫面卡住喺「處理中」）。以下一行強制 hidden 生效。 */
+[hidden]{display:none !important}
 #views{flex:1; padding:14px 14px calc(76px + env(safe-area-inset-bottom)); max-width:720px; width:100%; margin:0 auto}
 .view{display:block}
 .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
