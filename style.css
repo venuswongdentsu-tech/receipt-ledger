@@ -123,6 +123,14 @@ label.f input[type=text]{text-overflow:ellipsis}
 .sheet-body{flex:1; overflow:auto; padding:14px; max-width:720px; width:100%; margin:0 auto;
   padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 
+/* 編輯明細彈層：一個欄位一行 */
+.edform{display:block}
+.edrow{margin-top:10px}
+.edrow:first-child{margin-top:0}
+.edrow .grid2{margin-top:0}
+.edform label.f{font-size:12px}
+.edform label.f input,.edform label.f select{padding:11px 10px; font-size:15px; border-radius:10px}
+
 /* stats */
 .stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-bottom:12px}
 .st{background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px}
