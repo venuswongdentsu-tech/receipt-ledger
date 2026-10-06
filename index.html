@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -115,8 +115,10 @@
         <div class="row">
           <button class="btn btn-primary" id="btnSave">儲存設定</button>
           <button class="btn btn-danger" id="btnWipe">清除本機快取</button>
+          <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v3</b>（如你見到唔係 v3，請重新載入）</div>
       </div>
     </section>
 
@@ -132,6 +134,6 @@
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
