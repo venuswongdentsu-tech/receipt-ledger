@@ -3,17 +3,17 @@
   --ok:#1e7d5a; --warn:#b8860b; --err:#b3261e; --line:#dde3ec; --txt:#152238; --mut:#6b7a90;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;height:100%}
+html,body{margin:0;padding:0;height:100%;overflow:hidden}
 body{
   font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang HK","Noto Sans TC","Microsoft JhengHei",sans-serif;
   color:var(--txt); background:var(--bg);
   overscroll-behavior-y:none;
 }
-#app{min-height:100%; display:flex; flex-direction:column}
+#app{height:100%; height:100dvh; display:flex; flex-direction:column}
 
 /* header */
 .hd{
-  background:linear-gradient(160deg,var(--navy),var(--blue)); color:#fff;
+  flex:0 0 auto; background:linear-gradient(160deg,var(--navy),var(--blue)); color:#fff;
   padding:calc(env(safe-area-inset-top) + 14px) 16px 14px;
   display:flex; align-items:flex-end; justify-content:space-between; gap:10px;
   position:sticky; top:0; z-index:20; box-shadow:0 2px 10px rgba(20,40,80,.18);
@@ -28,8 +28,9 @@ body{
 /* ⚠ 關鍵：唔可以有 rule 直接用 display 蓋過 hidden 屬性（.view{display:block} / .overlay{display:flex} 會令 [hidden] 失效，
    遮罩同所有 panel 會一齊顯示，畫面卡住喺「處理中」）。以下一行強制 hidden 生效。 */
 [hidden]{display:none !important}
-#views{flex:1; padding:14px 14px calc(76px + env(safe-area-inset-bottom)); max-width:720px; width:100%; margin:0 auto}
-.view{display:block}
+#views{flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain; padding:14px 14px calc(20px + env(safe-area-inset-bottom))}
+.view{display:block; max-width:720px; width:100%; margin:0 auto}
 .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
 .sec-h{font-size:13px; color:var(--mut); margin:16px 4px 8px; font-weight:600}
 .empty{text-align:center; color:var(--mut); padding:34px 16px; font-size:14px}
@@ -145,10 +146,15 @@ label.f input[type=text]{text-overflow:ellipsis}
 }
 
 /* tabs */
+/* 底部 tab bar：刻意唔用 position:fixed。
+   用 flex app-shell（#app 高 100dvh、#views 自己滾動），個 bar 係最後一個 flex 項目，
+   所以無論手機工具列收放、PWA 定瀏覽器，都一定貼實裝置底部。 */
 .tabs{
-  position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex;
+  flex:0 0 auto; position:relative; z-index:30; display:flex;
   background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
-  border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
 }
 .tab{
   flex:1; appearance:none; border:0; background:none; padding:8px 4px 10px;
