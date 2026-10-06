@@ -101,6 +101,12 @@ ov = function (on, txt) {
   if (on) _ovT = setTimeout(function () { try { _ovRaw(false); } catch (e) {} }, 90000);
 };
 
+/* 已知唔支援睇圖嘅純文字模型 → 讀唔到收據（早啲提你，唔好白費 request） */
+function looksTextOnly(m) {
+  m = (m || "").toLowerCase();
+  return /deepseek|dolphin|mixtral|command-r|o1-mini|o1-preview|gpt-3\.5|text-davinci|qwen-?2|yi-|gemma-2|phi-3/.test(m);
+}
+
 function needsTranslation(name) {
   if (!name) return false;
   if (/[\u4e00-\u9fff]/.test(name)) return false;          // 有中文 -> 唔譯
@@ -173,6 +179,13 @@ function callModel(parts) {
   /* parts: [{text:"…"} | {image:{mime,b64}}] */
   if (!S.key) throw new Error("未設定 API Key（去「設定」）");
   if (!S.base || !S.model) throw new Error("未設定 Base URL／模型（去「設定」）");
+  /* 先驗證設定，避免請求去錯地方（Safari 只會報 Load failed，睇唔出原因） */
+  var _b = (S.base || "").trim();
+  if (S.style !== "gemini" && !/^https?:\/\//i.test(_b)) {
+    return Promise.reject(new Error(
+      "❌ Base URL 未填好（而家係「" + (_b || "空白") + "」），所以請求去咗錯嘅地方。\n" +
+      "👉 去「設定」：服務商揀 Gemini 或 OpenRouter 會自動填 Base URL；揀「自訂」就要自己填完整網址（例如 https://xxx/v1）。"));
+  }
   var url, headers = { "Content-Type": "application/json" }, body;
 
   if (S.style === "gemini") {
@@ -192,9 +205,21 @@ function callModel(parts) {
         return { type: "image_url", image_url: { url: "data:" + p.image.mime + ";base64," + p.image.b64 } };
       }) }] };
   }
-  AI_DEBUG = { model: S.model, provider: S.provider, style: S.style,
+  var _payloadKB = Math.round(JSON.stringify(body).length / 1024);
+  AI_DEBUG = { model: S.model, provider: S.provider, style: S.style, endpoint: url, payloadKB: _payloadKB,
     hasImage: parts.some(function (p) { return !!p.image; }) };
   return fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
+    .catch(function (e) {
+      var m = (e && e.message) ? e.message : String(e);
+      throw new Error("❌ 網絡請求失敗（" + m + "）—— 瀏覽器完全連唔到呢個 API，所以 API 未收到你嘅收據。\n\n" +
+        "端點：" + url + "\n" +
+        "供應商：" + S.provider + "｜模型：" + S.model + "｜送出約 " + _payloadKB + " KB\n\n" +
+        "最常見 3 個原因：\n" +
+        "① 呢個供應商唔准網頁直接呼叫（CORS）—— OpenAI 官方、DeepSeek 官方、Anthropic 官方都係咁，必定出 Load failed\n" +
+        "② Base URL 打錯、多咗空格、或者漏咗 /v1\n" +
+        "③ 手機網絡一時間唔穩（可以再試一次）\n\n" +
+        "👉 最穩陣：服務商改揀 Gemini（有免費額度、支援睇圖）或 OpenRouter，再按「測試連線」。");
+    })
     .then(function (r) {
       return r.text().then(function (t) {
         AI_DEBUG.status = r.status;
@@ -420,13 +445,16 @@ function shrink(dataUrl, file) {
     }
     var img = new Image();
     img.onload = function () {
-      var MAX = 1600, w = img.naturalWidth, h = img.naturalHeight;
+      /* 1280px / q0.75：讀收據足夠，同時令上傳細好多（手機網絡穩陣啲） */
+      var MAX = 1280, w = img.naturalWidth, h = img.naturalHeight;
       var sc = Math.min(1, MAX / Math.max(w, h));
       var c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      var out = c.toDataURL("image/jpeg", 0.85);
-      res({ dataUrl: out, mime: "image/jpeg", b64: out.split(",")[1], w: c.width, h: c.height });
+      var out = c.toDataURL("image/jpeg", 0.75);
+      if (out.length > 900000) out = c.toDataURL("image/jpeg", 0.6);   /* 仲係太大就再壓 */
+      res({ dataUrl: out, mime: "image/jpeg", b64: out.split(",")[1], w: c.width, h: c.height,
+            kb: Math.round(out.length / 1024 * 0.75) });
     };
     img.onerror = function () { res({ dataUrl: dataUrl, mime: file.type || "image/jpeg", b64: String(dataUrl).split(",")[1] || "" }); };
     img.src = dataUrl;
@@ -525,6 +553,9 @@ function handleFiles(list) {
   var files = Array.prototype.slice.call(list || []);
   if (!files.length) return;
   if (!S.key) { toast("請先去「設定」填 API Key", true); go("set"); return; }
+  if (looksTextOnly(S.model)) {
+    toast("⚠️ 模型「" + S.model + "」應該係純文字模型（睇唔到圖），大機會讀唔到收據", true);
+  }
   var i = 0;
   var step = function () {
     if (i >= files.length) { ov(false); saveLocal(); renderAll(); toast("辨識完成，去「待確認」覆核"); return; }
@@ -537,6 +568,7 @@ function handleFiles(list) {
     ov(true, "辨識 " + i + "/" + files.length + "：" + f.name);
     readFile(f).then(function (dataUrl) { return shrink(dataUrl, f); }).then(function (photo) {
       photo.rid = uid(10); photo.name = f.name;
+      if (photo.kb) card.querySelector(".q-s").textContent = "已壓縮 " + photo.kb + " KB，辨識中…";
       if (photo.pdf) {
         card.querySelector(".st").textContent = "⚠️";
         card.querySelector(".q-s").innerHTML = '<span class="bad">暫不支援 PDF，請用相片或截圖</span>';
@@ -884,6 +916,29 @@ function bind() {
     callModel([{ text: 'Reply with exactly: {"ok":true}' }]).then(function (t) {
       o.className = "hint ok"; o.textContent = "✓ 連線成功：" + (t || "").slice(0, 40);
     }).catch(function (e) { o.className = "hint err"; o.textContent = "✗ " + e.message.slice(0, 160); });
+  });
+  /* 診斷連線：一次過列出所有相關資訊（方便搵出 Load failed 嘅原因） */
+  $("btnDiag").addEventListener("click", function () {
+    var o = $("testOut"); o.className = "hint"; o.textContent = "診斷中…";
+    S.provider = $("fProvider").value; S.base = $("fBase").value.trim();
+    S.key = $("fKey").value.trim(); S.model = $("fModel").value.trim();
+    S.style = (S.provider === "gemini" || /generativelanguage\.googleapis\.com/.test(S.base)) ? "gemini" : "openai";
+    saveSettings();
+    var rep = ["=== 診斷報告 " + new Date().toISOString().slice(0, 19) + " ===",
+      "服務商：" + S.provider + "（style=" + S.style + "）",
+      "Base URL：" + (S.base || "（空白！）"),
+      "模型：" + S.model + (looksTextOnly(S.model) ? "   ← ⚠️ 疑似純文字模型，睇唔到圖" : ""),
+      "API Key：" + (S.key ? "已填（" + S.key.length + " 字）" : "未填"),
+      "資料 repo：" + (S.repo || "未填") + "｜token：" + (S.token ? "已填" : "未填"),
+      "網頁：" + location.href];
+    callModel([{ text: 'Reply with exactly: {"ok":true}' }]).then(function (t) {
+      rep.push("文字連線：✓ 成功 → " + (t || "").slice(0, 80));
+    }).catch(function (e) {
+      rep.push("文字連線：✗ 失敗", e.message);
+    }).then(function () {
+      o.className = "hint";
+      o.innerHTML = '<pre style="white-space:pre-wrap;font-size:11px;line-height:1.45;margin:0">' + esc(rep.join("\n")) + "</pre>";
+    });
   });
   $("btnGhTest").addEventListener("click", function () {
     S.repo = $("fRepo").value.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\/+$/, "");
