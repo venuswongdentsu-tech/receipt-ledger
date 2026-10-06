@@ -88,6 +88,19 @@ function ov(on, txt) { $("ov").hidden = !on; if (txt) $("ovTxt").textContent = t
 function b64enc(str) { return btoa(unescape(encodeURIComponent(str))); }
 function b64dec(b64) { return decodeURIComponent(escape(atob((b64 || "").replace(/\s/g, "")))); }
 
+/* ── 保險：無論如何都唔可以卡住喺遮罩 ── */
+window.addEventListener("error", function () { try { ov(false); } catch (e) {} });
+window.addEventListener("unhandledrejection", function () { try { ov(false); } catch (e) {} });
+window.addEventListener("pageshow", function () { try { ov(false); } catch (e) {} });
+/* 遮罩最長 90 秒自動收（避免任何未知情況卡死） */
+var _ovT = null;
+var _ovRaw = ov;
+ov = function (on, txt) {
+  _ovRaw(on, txt);
+  clearTimeout(_ovT);
+  if (on) _ovT = setTimeout(function () { try { _ovRaw(false); } catch (e) {} }, 90000);
+};
+
 function needsTranslation(name) {
   if (!name) return false;
   if (/[\u4e00-\u9fff]/.test(name)) return false;          // 有中文 -> 唔譯
@@ -765,7 +778,26 @@ function bind() {
     ["ra.settings", "ra.ledger", "ra.pending", "ra.ledgerSha", "ra.rates", "ra.ratesDate"].forEach(function (k) { localStorage.removeItem(k); });
     location.reload();
   });
-  /* 查可用模型：填入 datalist，一按即填 fModel */
+  /* 強制更新介面：清 Service Worker + 所有快取，再用新網址重載 */
+  $("btnHard").addEventListener("click", function () {
+    var o = $("about"); if (o) o.textContent = "正在強制更新…";
+    var jobs = [];
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      }
+      if (window.caches && caches.keys) {
+        jobs.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+    } catch (e) {}
+    Promise.all(jobs).catch(function () {}).then(function () {
+      location.replace(location.pathname + "?v=" + Date.now());
+    });
+  });
   function listModels() {
     var o = $("modelOut");
     if (!S.key) { o.className = "hint err"; o.textContent = "請先填 API Key"; return; }
