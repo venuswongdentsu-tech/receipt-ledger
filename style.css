@@ -49,6 +49,16 @@ body{
 .row{display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap}
 .hint{font-size:12px;color:var(--mut);line-height:1.5}
 .hint.ok{color:var(--ok)} .hint.err{color:var(--err)}
+/* 可摺疊提示（預設收埋，唔會一開就見到） */
+.fold{margin-top:10px}
+.fold>summary{cursor:pointer; list-style:none; display:flex; align-items:center; gap:7px;
+  font-size:12.5px; font-weight:600; color:var(--blue); padding:9px 11px;
+  background:var(--light); border:1px solid var(--line); border-radius:10px}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"▸"; color:var(--mut); font-size:11px}
+.fold[open]>summary::before{content:"▾"}
+.fold[open]>summary{margin-bottom:8px}
+.fold>.hint,.fold>.set-p{margin-top:6px}
 .mlink{display:inline-block;color:var(--blue);text-decoration:none;font-size:12.5px;padding:1px 0}
 
 /* upload */
