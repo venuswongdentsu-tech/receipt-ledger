@@ -687,10 +687,10 @@ function itemCard(r, mode) {
     + '<label class="f">數量<input type="number" step="any" data-k="qty" value="' + (r.qty || 1) + '"></label>'
     + '<label class="f">金額<input type="number" step="any" data-k="amount" value="' + (r.amount || 0) + '"></label>'
     + '<label class="f">幣別<select data-k="currency">' + curOpts + "</select></label></div>"
-    + '<div class="grid3">'
+    + '<div class="grid3 grid3-wide">'
     + '<label class="f">類別<select data-k="category">' + opts + "</select></label>"
     + '<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>'
-    + '<label class="f">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
+    + '<label class="f f-wide">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
 
   var act = mode === "pend"
     ? '<div class="item-act"><button class="btn btn-sm" data-act="p-del">刪除</button>'
