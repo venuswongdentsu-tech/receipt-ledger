@@ -19,11 +19,36 @@ var CAT_ALIAS = { "餐飲美食": "餐飲", "飲食": "餐飲", "餐廳": "餐�
   "服飾": "服飾美容", "美容": "服飾美容", "醫療": "醫療保健", "健康": "醫療保健",
   "家庭": "家居", "家品": "家居", "娛樂休閒": "娛樂", "教育學習": "教育" };
 
+/* v9：只保留「香港可用 ＋ 支援睇圖 ＋ 網頁可直接呼叫(CORS)」嘅供應商。
+   已剔除：Google Gemini（香港 IP 被拒：User location is not supported）、
+             OpenAI 官方（POST 冇 CORS）、DeepSeek（純文字，睇唔到圖）、Groq（冇確認嘅睇圖模型）。 */
 var PROVIDERS = {
-  gemini: { style: "gemini", base: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-flash-latest" },
-  openrouter: { style: "openai", base: "https://openrouter.ai/api/v1", model: "google/gemma-4-31b-it:free" },
-  openai: { style: "openai", base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
-  custom: { style: "openai", base: "", model: "" }
+  openrouter: {
+    style: "openai", base: "https://openrouter.ai/api/v1",
+    model: "google/gemma-4-31b-it:free",
+    label: "OpenRouter",
+    note: "香港可用・支援睇圖・有免費模型（50 次/日）",
+    keyUrl: "https://openrouter.ai/keys",
+    visionRx: null      /* OpenRouter /models 會直接講 input_modalities，最準 */
+  },
+  mistral: {
+    style: "openai", base: "https://api.mistral.ai/v1",
+    model: "mistral-small-latest",
+    label: "Mistral AI",
+    note: "香港可用・支援睇圖・有免費額度",
+    keyUrl: "https://console.mistral.ai/api-keys",
+    visionRx: /^(pixtral|mistral-(small|medium|large|tiny)-(latest|2\d{3})|magistral-(small|medium)-(latest|2\d{3})|ministral-3-14b)/i
+  },
+  qwen: {
+    style: "openai", base: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    model: "qwen3.8-max",
+    label: "阿里雲百鍊 Qwen（國際版）",
+    note: "香港可用・支援睇圖",
+    keyUrl: "https://modelstudio.console.alibabacloud.com/",
+    visionRx: /(vl|omni|qwen3\.\d+-(max|plus))/i
+  },
+  custom: { style: "openai", base: "", model: "", label: "自訂（進階）",
+    note: "你自己嘅 OpenAI 相容端點；必須支援 CORS 同支援睇圖", keyUrl: "", visionRx: null }
 };
 
 var PROMPT = `You are a meticulous receipt data extractor for a personal accounting ledger.
@@ -59,8 +84,8 @@ Rules:
 - total = the receipt grand total in the receipt's currency.`;
 
 /* ───────────────────────── 小工具 ───────────────────────── */
-var S = { provider: "gemini", style: "gemini", base: PROVIDERS.gemini.base,
-          model: PROVIDERS.gemini.model, key: "", repo: "", token: "", rates: "" };
+var S = { provider: "openrouter", style: "openai", base: PROVIDERS.openrouter.base,
+          model: PROVIDERS.openrouter.model, key: "", repo: "", token: "", rates: "" };
 var items = [];          // 帳簿
 var pending = [];        // 待確認
 var ledgerSha = null;
@@ -129,8 +154,33 @@ function fxOf(cur) {
 }
 
 /* ───────────────────────── 設定 ───────────────────────── */
+/* v9：舊設定若係「香港用唔到／睇唔到圖」嘅供應商 → 自動搬去 OpenRouter */
+var MIG_NOTE = "";
+function migrateSettings() {
+  var why = "";
+  if (S.provider === "gemini" || S.provider === "openai") why = "原本嘅服務商唔可以由網頁直接呼叫或香港用唔到";
+  else if (S.provider && !PROVIDERS[S.provider]) why = "原本嘅服務商已停用";
+  if (/generativelanguage\.googleapis\.com/i.test(S.base || "")) why = "Google Gemini API 香港唔可以用（User location is not supported）";
+  else if (/api\.openai\.com/i.test(S.base || "")) why = "OpenAI 官方 API 唔可以由網頁直接呼叫（CORS）";
+  else if (/deepseek/i.test(S.base || "") || looksTextOnly(S.model)) why = "原本嘅模型睇唔到圖（讀唔到收據）";
+  if (!why) return;
+  S.provider = "openrouter"; S.style = "openai";
+  S.base = PROVIDERS.openrouter.base; S.model = PROVIDERS.openrouter.model;
+  S.key = "";   /* 舊 key 屬於舊供應商，唔可以重用 */
+  MIG_NOTE = "⚠️ 已自動改用 OpenRouter：" + why + "。請去 openrouter.ai 開一個免費 key 填返（詳見設定頁）。";
+  saveSettings();
+}
+function keyHelpFor(name) {
+  var p = PROVIDERS[name], el = $("keyHelp");
+  if (!el) return;
+  if (p && p.keyUrl) {
+    el.innerHTML = "🔑 " + esc(p.label) + " —— 去呢度免費開 API key：" +
+      '<a href="' + p.keyUrl + '" target="_blank" rel="noopener">' + p.keyUrl + "</a>";
+  } else el.textContent = "";
+}
 function loadSettings() {
   try { var raw = localStorage.getItem("ra.settings"); if (raw) Object.assign(S, JSON.parse(raw)); } catch (e) {}
+  migrateSettings();
   try { rates = JSON.parse(localStorage.getItem("ra.rates") || "{}"); } catch (e) { rates = {}; }
   ratesDate = localStorage.getItem("ra.ratesDate") || "";
   try { ledgerSha = localStorage.getItem("ra.ledgerSha") || null; } catch (e) {}
@@ -707,6 +757,7 @@ function go(v) {
 }
 function fillSettings() {
   $("fProvider").value = S.provider;
+  keyHelpFor(S.provider);
   $("fBase").value = S.base; $("fKey").value = S.key; $("fModel").value = S.model;
   $("fRepo").value = S.repo; $("fToken").value = S.token; $("fRates").value = S.rates || "";
   $("about").innerHTML = "個人記帳 v1 · 前端：GitHub Pages（公開）· 資料：你嘅私有 repo<br>"
@@ -804,11 +855,12 @@ function bind() {
   /* 設定 */
   $("fProvider").addEventListener("change", function () {
     var n = this.value;
-    if (n !== "custom") {
-      var p = PROVIDERS[n];
-      $("fBase").value = p.base; $("fModel").value = p.model;
-      if (n === "openai") $("testOut").className = "hint";
+    if (n !== "custom" && PROVIDERS[n]) {
+      $("fBase").value = PROVIDERS[n].base; $("fModel").value = PROVIDERS[n].model;
     }
+    keyHelpFor(n);
+    var t = $("testOut"); if (t) { t.className = "hint"; t.textContent = ""; }
+    var m = $("modelOut"); if (m) { m.className = "hint"; m.textContent = ""; }
   });
   $("btnSave").addEventListener("click", function () {
     S.provider = $("fProvider").value;
@@ -852,40 +904,53 @@ function bind() {
   });
   function listModels() {
     var o = $("modelOut");
+    S.provider = $("fProvider").value; S.base = $("fBase").value.trim(); S.key = $("fKey").value.trim();
     if (!S.key) { o.className = "hint err"; o.textContent = "請先填 API Key"; return; }
+    var p = PROVIDERS[S.provider] || PROVIDERS.custom;
+    var base = (S.base || p.base || "").replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(base)) {
+      o.className = "hint err";
+      o.textContent = "請先填 Base URL（例如 https://openrouter.ai/api/v1）";
+      return;
+    }
     o.className = "hint"; o.textContent = "查詢中…";
-    var gem = (S.style === "gemini" || /generativelanguage\.googleapis\.com/.test(S.base));
-    var base = (S.base || PROVIDERS.gemini.base).replace(/\/+$/, "");
-    var url = gem ? base + "/models?key=" + encodeURIComponent(S.key) : base + "/models";
-    var hdr = gem ? {} : { "Authorization": "Bearer " + S.key };
-    fetch(url, { headers: hdr }).then(function (r) {
+    fetch(base + "/models", { headers: { "Authorization": "Bearer " + S.key } }).then(function (r) {
       return r.text().then(function (t) {
         if (!r.ok) throw new Error("HTTP " + r.status + "：" + t.slice(0, 200));
         var d = JSON.parse(t), names = [], imgOf = {};
-        if (d.models) d.models.forEach(function (m) {
-          var n = (m.name || "").replace(/^models\//, "");
-          var ok = !m.supportedGenerationMethods || m.supportedGenerationMethods.indexOf("generateContent") >= 0;
-          if (ok) { names.push(n); imgOf[n] = true; }   /* Gemini 系列全部支援睇圖 */
-        });
-        else if (d.data) d.data.forEach(function (m) {
+        if (d.data) d.data.forEach(function (m) {
           names.push(m.id);
           var mods = (m.architecture && m.architecture.input_modalities) || [];
-          /* 有講明就用佢；冇講（例如自訂 gateway）→ 當「未知」，唔可以當佢唔支援 */
+          /* 有講明就用佢；冇講（例如自訂 gateway）→ 當「未知」 */
           imgOf[m.id] = mods.length ? mods.indexOf("image") >= 0 : null;
         });
+        else if (d.models) d.models.forEach(function (m) {   /* 較舊格式 */
+          var n = (m.name || "").replace(/^models\//, "");
+          if (!m.supportedGenerationMethods || m.supportedGenerationMethods.indexOf("generateContent") >= 0) {
+            names.push(n); imgOf[n] = true;
+          }
+        });
         if (!names.length) throw new Error("冇列出模型");
-        var isImg = function (n) { return imgOf[n] !== false; };
-        var nice = names.filter(function (n) {
-          return isImg(n) && (/:free$/i.test(n) ||
-            /flash|gemini|gemma|gpt-|claude|qwen|inkling|nemotron|dots-|vision|omni|llama-4|mistral/i.test(n));
+        /* 只保留「支援睇圖」：API 有講就用 API；冇講就用該供應商已知嘅睇圖型號規則 */
+        var isImg = function (n) {
+          if (imgOf[n] === false) return false;
+          if (imgOf[n] === true) return true;
+          if (p.visionRx) return p.visionRx.test(n);
+          return true;
+        };
+        var imgs = names.filter(isImg);
+        var hidden = names.length - imgs.length;
+        var nice = imgs.filter(function (n) {
+          return /:free$/i.test(n) || /vl|vision|omni|gemma|inkling|nemotron|dots-|pixtral|mistral-(small|medium|large)-(latest|2\d{3})|qwen3\./i.test(n);
         });
         nice.sort(function (a, b) {
           var fa = /:free$/i.test(a) ? 0 : 1, fb = /:free$/i.test(b) ? 0 : 1;
           if (fa !== fb) return fa - fb;
           return a < b ? -1 : 1;
         });
-        var show = (nice.length ? nice : names.filter(isImg)).slice(0, 40);
-        var noImg = names.filter(function (n) { return !isImg(n); }).slice(0, 8);
+        var caveat = false, show = nice.slice(0, 40);
+        if (!show.length) show = imgs.slice(0, 12);
+        if (!imgs.length) { show = names.slice(0, 12); caveat = true; }  /* 完全判斷唔到 → 列出 + 警告 */
         var dl = $("models");
         if (dl) dl.innerHTML = show.map(function (n) { return '<option value="' + n + '"></option>'; }).join("");
         o.className = "hint ok";
@@ -893,8 +958,8 @@ function bind() {
           show.map(function (n) {
             return '<a href="#" class="mlink" data-m="' + n + '">' + (/:free$/i.test(n) ? "🆓 " : "🖼 ") + n + "</a>";
           }).join("<br>") +
-          (names.length > show.length ? "<br>（共 " + names.length + " 個模型）" : "") +
-          (noImg.length ? '<br><br>🚫 <b>唔支援睇圖</b>（唔可以用嚟讀收據）：' + noImg.join("、") : "");
+          (hidden > 0 ? '<br><span style="opacity:.65">（已隱藏 ' + hidden + " 個唔支援睇圖嘅模型）</span>" : "") +
+          (caveat ? '<br><b>⚠️ 呢個供應商未能自動確認邊啲支援睇圖</b>，請揀型號名有 vl／vision／omni 字樣嘅。' : "");
         Array.prototype.forEach.call(o.querySelectorAll(".mlink"), function (a) {
           a.addEventListener("click", function (e) {
             e.preventDefault();
@@ -976,6 +1041,7 @@ if (!items.length && !pending.length) {
 bind();
 fillSettings();
 renderAll();
+if (MIG_NOTE) setTimeout(function () { toast(MIG_NOTE, true); }, 1500);
 if (!S.repo && !S.key) go("set");
 loadRates();
 if (ghReady()) {
