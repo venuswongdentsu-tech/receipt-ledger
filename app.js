@@ -173,14 +173,14 @@ function migrateSettings() {
   S.provider = "openrouter"; S.style = "openai";
   S.base = PROVIDERS.openrouter.base; S.model = PROVIDERS.openrouter.model;
   S.key = "";   /* 舊 key 屬於舊供應商，唔可以重用 */
-  MIG_NOTE = "⚠️ 已自動改用 OpenRouter：" + why + "。請去 openrouter.ai 開一個免費 key 填返（詳見設定頁）。";
+  MIG_NOTE = "已自動改用 OpenRouter：" + why + "。請去 openrouter.ai 開一個免費 key 填返（詳見設定頁）。";
   saveSettings();
 }
 function keyHelpFor(name) {
   var p = PROVIDERS[name], el = $("keyHelp");
   if (!el) return;
   if (p && p.keyUrl) {
-    el.innerHTML = "🔑 " + esc(p.label) + " —— 去呢度免費開 API key：" +
+    el.innerHTML = esc(p.label) + " —— 去呢度免費開 API key：" +
       '<a href="' + p.keyUrl + '" target="_blank" rel="noopener">' + p.keyUrl + "</a>";
   } else el.textContent = "";
 }
@@ -280,30 +280,30 @@ function errInfo(txt, status) {
 /* 錯咗之後，畀人話得明嘅解釋（唔使查 Google 都知點做） */
 function explainHttp(status, txt) {
   var i = errInfo(txt, status), m = i.msg || "", et = i.etype || "";
-  var L = ["❌ HTTP " + (i.code || status) + (et ? "（" + et + "）" : "") + "：" + m];
+  var L = ["HTTP " + (i.code || status) + (et ? "（" + et + "）" : "") + "：" + m];
   if (status === 429) return rateLimitMsg(txt, status);
   if (/location is not supported|not supported for the api use|failed_precondition/i.test(m + " " + et)) {
-    L.push("\n👉 **上游供應商封鎖香港 IP** —— 呢個模型（" + (S.model || "") + "）由「" +
+    L.push("\n**上游供應商封鎖香港 IP** —— 呢個模型（" + (S.model || "") + "）由「" +
       (et || "Google AI Studio") + "」執行，香港用唔到。\n解決：設定 →「查模型」揀唔經 Google 嘅免費睇圖模型 —— **thinkingmachines/inkling-small:free**、**dots-studio/dots-3-note-preview:free**、**thinkingmachines/inkling:free**。App 亦會自動幫你轉。");
   }
   else if (status === 401)
-    L.push("\n👉 401 ＝ API Key 無效／未生效。去「設定」重新貼一次 key（OpenRouter key 開頭係 sk-or-）。");
+    L.push("\n401 ＝ API Key 無效／未生效。去「設定」重新貼一次 key（OpenRouter key 開頭係 sk-or-）。");
   else if (status === 402)
-    L.push("\n👉 402 ＝ 唔夠 credit。去 openrouter.ai/settings/credits 入錢，或改用免費（:free）型號。");
+    L.push("\n402 ＝ 唔夠 credit。去 openrouter.ai/settings/credits 入錢，或改用免費（:free）型號。");
   else if (status === 403) {
     if (/key limit|credit limit|limit exceeded/i.test(m + " " + et))
-      L.push("\n👉 403 ＝ 你條 API Key 設咗上限（Credit limit），用完額度就會 403。\n解決：去 openrouter.ai/settings/keys → 搵你條 key → Credit limit 改成 Unlimited（或加大）→ 儲存，等 1 分鐘再按「測試連線」。");
+      L.push("\n403 ＝ 你條 API Key 設咗上限（Credit limit），用完額度就會 403。\n解決：去 openrouter.ai/settings/keys → 搵你條 key → Credit limit 改成 Unlimited（或加大）→ 儲存，等 1 分鐘再按「測試連線」。");
     else if (/content|safety|policy|moderation|refus|guardrail|injection/i.test(m + " " + et))
-      L.push("\n👉 403 ＝ 內容／守則過濾攔住（唔係你設定錯）。App 會自動試其他免費模型；若個個都攔，可能係供應商（例如 Google）對某類圖片嘅安全過濾 —— 可換供應商（Mistral／阿里 Qwen）或換張清晰啲、冇反光嘅收據相。");
+      L.push("\n403 ＝ 內容／守則過濾攔住（唔係你設定錯）。App 會自動試其他免費模型；若個個都攔，可能係供應商（例如 Google）對某類圖片嘅安全過濾 —— 可換供應商（Mistral／阿里 Qwen）或換張清晰啲、冇反光嘅收據相。");
     else
-      L.push("\n👉 403 ＝ key 有效但無權限／被攔。逐項檢查：\n① openrouter.ai/settings/keys → 你條 key 有冇設 Credit limit（改 Unlimited）\n② openrouter.ai/settings/privacy → 私隱／provider 設定有冇鎖住\n③ openrouter.ai/settings/limits → 帳戶有冇觸發用量限制");
+      L.push("\n403 ＝ key 有效但無權限／被攔。逐項檢查：\n① openrouter.ai/settings/keys → 你條 key 有冇設 Credit limit（改 Unlimited）\n② openrouter.ai/settings/privacy → 私隱／provider 設定有冇鎖住\n③ openrouter.ai/settings/limits → 帳戶有冇觸發用量限制");
   }
   else if (status === 400 && /image|too large|payload|base64|modality/i.test(m))
-    L.push("\n👉 400 ＝ 圖片格式／大小問題。App 已壓到 1280px；再失敗就換一張相（唔好超過 20MB）。");
+    L.push("\n400 ＝ 圖片格式／大小問題。App 已壓到 1280px；再失敗就換一張相（唔好超過 20MB）。");
   else if (status >= 500)
-    L.push("\n👉 供應商伺服器臨時故障，等 30 秒再按「測試連線」通常就好。");
+    L.push("\n供應商伺服器臨時故障，等 30 秒再按「測試連線」通常就好。");
   else
-    L.push("\n👉 伺服器拒絕咗呢次請求，原文見下。");
+    L.push("\n伺服器拒絕咗呢次請求，原文見下。");
   L.push("\n\n伺服器原話：" + String(txt || "").slice(0, 400));
   return L.join("");
 }
@@ -323,11 +323,11 @@ function isModelBlock(e) {
 }
 function rateLimitMsg(txt, status) {
   var cap = isDailyCap(txt);
-  return "🚦 HTTP " + (status || 429) + "：免費模型暫時擠塞" + (cap ? "／今日免費額度已用完" : "") + "。\n\n" +
+  return "HTTP " + (status || 429) + "：免費模型暫時擠塞" + (cap ? "／今日免費額度已用完" : "") + "。\n\n" +
     "OpenRouter 免費 tier：20 次/分鐘、50 次/日（全帳號計）。\n" +
     (cap
-      ? "👉 已撞到「今日免費上限」，轉型號都幫唔到：①等明日再試 ②去 openrouter.ai 入 US$10 credits（即升到 1000 次/日）③或改用 Mistral／阿里 Qwen。"
-      : "👉 App 已經自動試過幾個免費睇圖模型（" + FREE_FALLBACK.slice(0, 3).join("、") + " …）。仲擠塞就：①等 1 分鐘再按 ②設定→「查模型」揀另一個 🆓 型號 ③入 US$10 credits 升到 1000 次/日。") +
+      ? "已撞到「今日免費上限」，轉型號都幫唔到：①等明日再試 ②去 openrouter.ai 入 US$10 credits（即升到 1000 次/日）③或改用 Mistral／阿里 Qwen。"
+      : "App 已經自動試過幾個免費睇圖模型（" + FREE_FALLBACK.slice(0, 3).join("、") + " …）。仲擠塞就：①等 1 分鐘再按 ②設定→「查模型」揀另一個免費型號 ③入 US$10 credits 升到 1000 次/日。") +
     "\n\n伺服器原話：" + (txt || "").slice(0, 220);
 }
 
@@ -359,14 +359,14 @@ function _postModel(parts, useModel) {
   return fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
     .catch(function (e) {
       var m = (e && e.message) ? e.message : String(e);
-      throw new Error("❌ 網絡請求失敗（" + m + "）—— 瀏覽器完全連唔到呢個 API，所以 API 未收到你嘅收據。\n\n" +
+      throw new Error("網絡請求失敗（" + m + "）—— 瀏覽器完全連唔到呢個 API，所以 API 未收到你嘅收據。\n\n" +
         "端點：" + url + "\n" +
         "供應商：" + S.provider + "｜模型：" + S.model + "｜送出約 " + _payloadKB + " KB\n\n" +
         "最常見 3 個原因：\n" +
         "① 呢個供應商唔准網頁直接呼叫（CORS）—— OpenAI 官方、DeepSeek 官方、Anthropic 官方都係咁，必定出 Load failed\n" +
         "② Base URL 打錯、多咗空格、或者漏咗 /v1\n" +
         "③ 手機網絡一時間唔穩（可以再試一次）\n\n" +
-        "👉 最穩陣：服務商揀 OpenRouter（香港可用、有免費睇圖模型）；設定好之後按「測試連線」。");
+        "最穩陣：服務商揀 OpenRouter（香港可用、有免費睇圖模型）；設定好之後按「測試連線」。");
     })
     .then(function (r) {
       return r.text().then(function (t) {
@@ -395,13 +395,13 @@ function _postModel(parts, useModel) {
 }
 
 function callModel(parts, onNote) {
-  if (!S.key) return Promise.reject(new Error("❌ 未設定 API Key —— 去「設定」貼上 key，再按「測試連線」。"));
-  if (!S.base || !S.model) return Promise.reject(new Error("❌ 未設定 Base URL／模型 —— 去「設定」：服務商揀 OpenRouter 會自動填好。"));
+  if (!S.key) return Promise.reject(new Error("未設定 API Key —— 去「設定」貼上 key，再按「測試連線」。"));
+  if (!S.base || !S.model) return Promise.reject(new Error("未設定 Base URL／模型 —— 去「設定」：服務商揀 OpenRouter 會自動填好。"));
   var _b = (S.base || "").trim();
   if (S.style !== "gemini" && !/^https?:\/\//i.test(_b)) {
     return Promise.reject(new Error(
-      "❌ Base URL 未填好（而家係「" + (_b || "空白") + "」），所以請求去咗錯嘅地方。\n" +
-      "👉 去「設定」：服務商揀 OpenRouter 會自動填 Base URL；揀「自訂」就要自己填完整網址（例如 https://xxx/v1）。"));
+      "Base URL 未填好（而家係「" + (_b || "空白") + "」），所以請求去咗錯嘅地方。\n" +
+      "去「設定」：服務商揀 OpenRouter 會自動填 Base URL；揀「自訂」就要自己填完整網址（例如 https://xxx/v1）。"));
   }
   /* 免費模型 429 時，自動輪住試其他免費睇圖模型（只限 OpenRouter） */
   var chain = [S.model], used = "";
@@ -413,7 +413,7 @@ function callModel(parts, onNote) {
       .catch(function (e) {
         var why = (e && e.http === 429) ? " 擠塞" : ((e && e.http === 403) ? " 被攔" : ((e && e.http) ? "（HTTP " + e.http + "）" : " 唔通"));
         if (k + 1 < chain.length && k < 3 && isModelBlock(e)) {
-          say("⏳ " + chain[k] + why + "，自動改用 " + chain[k + 1] + "…");
+          say("" + chain[k] + why + "，自動改用 " + chain[k + 1] + "…");
           return attempt(k + 1, e);
         }
         throw e;
@@ -441,7 +441,7 @@ function parseJSONLoose(text) {
     throw new Error("AI 冇回傳 JSON。" + why + f +
       "\n\n模型：" + ((AI_DEBUG && AI_DEBUG.model) || "?") +
       "\n模型實際回覆：" + (raw ? raw.slice(0, 300) : "（空白）") +
-      "\n\n👉 去「設定」按「查模型」，揀有 🖼 標記（支援睇圖）嘅模型。");
+      "\n\n去「設定」按「查模型」，揀標示「支援睇圖」嘅模型。");
   }
   var d = JSON.parse(text.slice(a, b + 1));
   var rs = d && d.receipts;
@@ -455,7 +455,7 @@ function extractRows(photo, note) {
   var img = { image: { mime: photo.mime, b64: photo.b64 } };
   return callModel([{ text: prompt }, img], note).then(parseJSONLoose).catch(function (e1) {
     /* 第一次失敗 → 加強指令再試一次（好多模型要人提佢先肯淨係出 JSON） */
-    var strict = { text: prompt + "\n\n⚠️ 極重要：只可以輸出一個 JSON 物件。唔可以有任何解釋、問候、道歉或 markdown 代碼框。" };
+    var strict = { text: prompt + "\n\n極重要：只可以輸出一個 JSON 物件。唔可以有任何解釋、問候、道歉或 markdown 代碼框。" };
     return callModel([strict, img], note).then(parseJSONLoose).catch(function () { throw e1; });
   }).then(function (receipts) { return normalise(receipts, photo); });
 }
@@ -662,7 +662,7 @@ function renderHeader() {
   var rcpts = {};
   items.forEach(function (r) { if (r.receipt_id) rcpts[r.receipt_id] = 1; });
   $("hdSub").textContent = items.length + " 件已入帳 · " + Object.keys(rcpts).length + " 張收據"
-    + (pending.length ? " · ⏳ " + pending.length + " 待確認" : "");
+    + (pending.length ? " · " + pending.length + " 待確認" : "");
   var b = $("pendBadge");
   b.hidden = !pending.length; b.textContent = pending.length;
   $("pendBar").hidden = !pending.length;
@@ -801,7 +801,7 @@ function handleFiles(list) {
   if (!files.length) return;
   if (!S.key) { toast("請先去「設定」填 API Key", true); go("set"); return; }
   if (looksTextOnly(S.model)) {
-    toast("⚠️ 模型「" + S.model + "」唔支援圖像輸入（睇唔到圖）→ 大機會讀唔到收據。建議改 thinkingmachines/inkling-small:free", true);
+    toast("模型「" + S.model + "」唔支援圖像輸入（睇唔到圖）→ 大機會讀唔到收據。建議改 thinkingmachines/inkling-small:free", true);
   }
   var i = 0;
   var step = function () {
@@ -811,7 +811,7 @@ function handleFiles(list) {
     var f = files[i++];
     var card = document.createElement("div");
     card.className = "q"; card.id = "q" + i;
-    card.innerHTML = '<span class="st">⏳</span><div class="q-b"><div class="q-t">' + esc(f.name)
+    card.innerHTML = '<span class="st" style="color:#c9c9ce">●</span><div class="q-b"><div class="q-t">' + esc(f.name)
       + '</div><div class="q-s">辨識中…</div></div>';
     $("upQueue").prepend(card);
     ov(true, "辨識 " + i + "/" + files.length + "：" + f.name);
@@ -819,23 +819,23 @@ function handleFiles(list) {
       photo.rid = uid(10); photo.name = f.name;
       if (photo.kb) card.querySelector(".q-s").textContent = "已壓縮 " + photo.kb + " KB，辨識中…";
       if (photo.pdf) {
-        card.querySelector(".st").textContent = "⚠️";
+        card.querySelector(".st").textContent = "●"; card.querySelector(".st").style.color = "#c8a12a";
         card.querySelector(".q-s").innerHTML = '<span class="bad">暫不支援 PDF，請用相片或截圖</span>';
         return;
       }
       return extractRows(photo, function (m) { card.querySelector(".q-s").textContent = m; }).then(function (rows) {
         if (!rows.length) {
-          card.querySelector(".st").textContent = "🤷";
+          card.querySelector(".st").textContent = "●"; card.querySelector(".st").style.color = "#8e8e93";
           card.querySelector(".q-s").textContent = "冇辨識到項目";
         } else {
           pending = pending.concat(rows);
-          card.querySelector(".st").textContent = "✅";
+          card.querySelector(".st").textContent = "●"; card.querySelector(".st").style.color = "#12805c";
           card.querySelector(".q-s").textContent = "辨識到 " + rows.length + " 件（待確認）";
           return putPhoto(photo.rid, photo.b64, photo.name);
         }
       });
     }).catch(function (e) {
-      card.querySelector(".st").textContent = "❌";
+      card.querySelector(".st").textContent = "●"; card.querySelector(".st").style.color = "#d70015";
       card.querySelector(".q-s").innerHTML = '<span class="bad">' + esc(e.message) + "</span>";
       toast("辨識失敗：" + e.message, true);
     }).then(step);
@@ -1174,13 +1174,13 @@ function bind() {
         var dl = $("models");
         if (dl) dl.innerHTML = show.map(function (n) { return '<option value="' + n + '"></option>'; }).join("");
         o.className = "hint ok";
-        o.innerHTML = "✅ 支援睇圖（讀到收據）——按一下填入，🆓 = 免費：<br>" +
+        o.innerHTML = "支援睇圖（讀到收據）——按一下填入（型號尾綴 :free = 免費）：<br>" +
           show.map(function (n) {
-            return '<a href="#" class="mlink" data-m="' + n + '">' + (/:free$/i.test(n) ? "🆓 " : "🖼 ") + n +
-              (HK_BLOCKED_RX.test(n) ? ' <b style="color:#c00">⚠️ 香港用唔到（Google 封鎖香港 IP）</b>' : "") + "</a>";
+            return '<a href="#" class="mlink" data-m="' + n + '">' + n +
+              (HK_BLOCKED_RX.test(n) ? ' <b style="color:#c00">香港用唔到（Google 封鎖香港 IP）</b>' : "") + "</a>";
           }).join("<br>") +
           (hidden > 0 ? '<br><span style="opacity:.65">（已隱藏 ' + hidden + " 個唔支援睇圖嘅模型）</span>" : "") +
-          (caveat ? '<br><b>⚠️ 呢個供應商未能自動確認邊啲支援睇圖</b>，請揀型號名有 vl／vision／omni 字樣嘅。' : "");
+          (caveat ? '<br><b>呢個供應商未能自動確認邊啲支援睇圖</b>，請揀型號名有 vl／vision／omni 字樣嘅。' : "");
         Array.prototype.forEach.call(o.querySelectorAll(".mlink"), function (a) {
           a.addEventListener("click", function (e) {
             e.preventDefault();
@@ -1203,10 +1203,10 @@ function bind() {
       .then(function (t) {
         o.className = "hint ok";
         o.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:0">' +
-          esc("✓ 連線成功（模型：" + S.model + "）→ " + (t || "").slice(0, 60)) + "</pre>";
+          esc("連線成功（模型：" + S.model + "）→ " + (t || "").slice(0, 60)) + "</pre>";
       }).catch(function (e) {
         o.className = "hint err";
-        o.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:0">✗ ' + esc(e.message) + "</pre>";
+        o.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:0">' + esc(e.message) + "</pre>";
       });
   });
   /* 診斷連線：一次過列出所有相關資訊（方便搵出 Load failed 嘅原因） */
@@ -1219,16 +1219,16 @@ function bind() {
     var rep = ["=== 診斷報告 " + new Date().toISOString().slice(0, 19) + " ===",
       "服務商：" + S.provider + "（style=" + S.style + "）",
       "Base URL：" + (S.base || "（空白！）"),
-      "模型：" + S.model + (looksTextOnly(S.model) ? "   ← ⚠️ 疑似純文字模型，睇唔到圖" : ""),
+      "模型：" + S.model + (looksTextOnly(S.model) ? "   ← 疑似純文字模型，睇唔到圖" : ""),
       "API Key：" + (S.key ? "已填（" + S.key.length + " 字）" : "未填"),
       "資料 repo：" + (S.repo || "未填") + "｜token：" + (S.token ? "已填" : "未填"),
       "視窗：innerH=" + window.innerHeight + "｜視覺高度=" + (window.visualViewport ? Math.round(window.visualViewport.height) : "n/a")
         + "｜#app=" + ($("app").style.height || "CSS") + "｜底部安全區=" + safeBottomPx() + "px",
       "網頁：" + location.href];
     callModel([{ text: 'Reply with exactly: {"ok":true}' }], function (m) { rep.push("自動轉型號：" + m); }).then(function (t) {
-      rep.push("文字連線：✓ 成功 → " + (t || "").slice(0, 80));
+      rep.push("文字連線：成功 → " + (t || "").slice(0, 80));
     }).catch(function (e) {
-      rep.push("文字連線：✗ 失敗", e.message);
+      rep.push("文字連線：失敗", e.message);
     }).then(function () {
       o.className = "hint";
       o.innerHTML = '<pre style="white-space:pre-wrap;font-size:11px;line-height:1.45;margin:0">' + esc(rep.join("\n")) + "</pre>";
@@ -1239,16 +1239,16 @@ function bind() {
     S.token = $("fToken").value.trim();
     saveSettings();
     var o = $("ghOut"); o.className = "hint"; o.textContent = "測試中…";
-    if (!S.repo || !S.token) { o.className = "hint err"; o.textContent = "✗ 請填 repo 同 token"; return; }
+    if (!S.repo || !S.token) { o.className = "hint err"; o.textContent = "請填 repo 同 token"; return; }
     ghGet("ledger.json").then(function (f) {
-      if (f) { o.className = "hint ok"; o.textContent = "✓ 可讀寫，已有 ledger.json（" + f.size + " bytes）"; }
+      if (f) { o.className = "hint ok"; o.textContent = "可讀寫，已有 ledger.json（" + f.size + " bytes）"; }
       else {
         ghPut("ledger.json", b64enc(JSON.stringify({ version: 1, updated: new Date().toISOString(), items: [] }, null, 1)),
               "init ledger", null)
-          .then(function () { o.className = "hint ok"; o.textContent = "✓ 可讀寫，已建立 ledger.json"; })
-          .catch(function (e) { o.className = "hint err"; o.textContent = "✗ 寫入失敗：" + e.message.slice(0, 150); });
+          .then(function () { o.className = "hint ok"; o.textContent = "可讀寫，已建立 ledger.json"; })
+          .catch(function (e) { o.className = "hint err"; o.textContent = "寫入失敗：" + e.message.slice(0, 150); });
       }
-    }).catch(function (e) { o.className = "hint err"; o.textContent = "✗ " + e.message.slice(0, 150); });
+    }).catch(function (e) { o.className = "hint err"; o.textContent = e.message.slice(0, 150); });
   });
 }
 
