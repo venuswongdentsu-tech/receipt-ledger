@@ -684,38 +684,51 @@ function fieldGrid(r) {
     + '<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>'
     + '<label class="f f-wide">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
 }
-/* 唯讀一行（明細卡：完全冇輸入格 → 一定唔會重疊） */
-function roLine(r) {
-  var b = ["數量 " + (r.qty || 1), "幣別 " + esc(r.currency || "HKD")];
-  if (r.note) b.push("備註 " + esc(r.note));
-  return '<div class="ro">' + b.join(" · ") + "</div>";
-}
 function itemCard(r, mode) {
-  var alt = r.product_original && r.product_original !== r.product
-    ? '<div class="item-alt">原文：' + esc(r.product_original) + "</div>" : "";
-  var head = '<div class="item-top"><div class="item-name">' + esc(r.product || "（未命名）") + alt + "</div>"
-    + '<div class="item-amt">' + (r.currency === "HKD" ? "HK$" : esc(r.currency) + " ")
-    + money(r.amount) + '</div></div>'
-    + '<div class="item-sub">' + esc(r.date || "") + " " + esc(r.time || "")
-    + (r.store ? " · " + esc(r.store) : "") + ' · <span class="hkd">≈ HK$' + money(r.hkd) + "</span>"
-    + ' · <span class="cat-pill">' + esc(r.category) + "</span></div>";
-
-  var fields = mode === "led" ? roLine(r) : fieldGrid(r);
+  /* 每項獨立一行，方便一眼睇完 */
+  var row = function (k, v) {
+    return v ? '<div class="item-row"><span class="k">' + k + '</span><span class="v">' + v + "</span></div>" : "";
+  };
+  var orig = r.product_original && r.product_original !== r.product
+    ? '<div class="item-orig">原文：' + esc(r.product_original) + "</div>" : "";
 
   var act = mode === "pend"
-    ? '<div class="item-act"><button class="btn btn-sm" data-act="p-del">刪除</button>'
-      + '<button class="btn btn-sm btn-primary" data-act="p-ok">入帳</button></div>'
-    : '<div class="item-act"><button class="btn btn-sm" data-act="l-edit">✏️ 編輯</button>'
+    ? '<div class="item-act"><button class="btn btn-sm btn-primary" data-act="p-ok">入帳</button>'
+      + '<button class="btn btn-sm" data-act="p-edit">編輯</button>'
+      + '<button class="btn btn-sm btn-danger" data-act="p-del">刪除</button></div>'
+    : '<div class="item-act"><button class="btn btn-sm" data-act="l-edit">編輯</button>'
       + '<button class="btn btn-sm btn-danger" data-act="l-del">刪除</button></div>';
 
-  return '<div class="item" data-id="' + esc(r.id) + '" data-mode="' + mode + '">' + head + fields + act + "</div>";
+  var left = '<div class="item-l">'
+    + '<div class="item-name">' + esc(r.product || "（未命名）") + "</div>" + orig
+    + row("商店", esc(r.store || ""))
+    + row("類別", '<span class="cat-pill">' + esc(r.category || "其他") + "</span>")
+    + row("數量", String(r.qty || 1))
+    + row("日期", esc((r.date || "") + (r.time ? " " + r.time : "")))
+    + "</div>";
+
+  var right = '<div class="item-r">'
+    + '<div class="item-amt">' + (r.currency === "HKD" ? "HK$" : esc(r.currency || "HKD") + " ")
+    + money(r.amount) + "</div>"
+    + '<div class="item-hkd">≈ HK$' + money(r.hkd) + "</div>"
+    + act + "</div>";
+
+  return '<div class="item" data-id="' + esc(r.id) + '" data-mode="' + mode + '">'
+    + '<div class="item-grid">' + left + right + "</div></div>";
 }
 
 /* ───────── 編輯彈層（明細卡按「編輯」先開；可儲存／取消） ───────── */
-var edId = null, edDraft = null;
+var edId = null, edDraft = null, edList = null;
+function findRec(id) {
+  var r = items.filter(function (x) { return x.id === id; })[0];
+  if (r) return { rec: r, list: "ledger" };
+  r = pending.filter(function (x) { return x.id === id; })[0];
+  return r ? { rec: r, list: "pending" } : null;
+}
 function openEdit(id) {
-  var r = items.filter(function (x) { return x.id === id; })[0]; if (!r) return;
-  edId = id; edDraft = JSON.parse(JSON.stringify(r));
+  var f = findRec(id); if (!f) return;
+  var r = f.rec;
+  edId = id; edList = f.list; edDraft = JSON.parse(JSON.stringify(r));
   $("edTitle").textContent = r.product || "編輯明細";
   $("edBody").innerHTML = fieldGrid(edDraft)
     + '<div class="hint" style="margin-top:12px">改完按右上角「儲存」；按「取消」就唔會改到。'
@@ -729,12 +742,14 @@ function closeEdit() {
   document.body.style.overflow = "";
 }
 function saveEdit() {
-  var r = items.filter(function (x) { return x.id === edId; })[0];
-  if (!r || !edDraft) { closeEdit(); return; }
+  var f = findRec(edId);
+  if (!f || !edDraft) { closeEdit(); return; }
   ["qty", "amount", "currency", "category", "date", "store"].forEach(function (k) {
-    applyEdit(r, k, edDraft[k]);
+    applyEdit(f.rec, k, edDraft[k]);
   });
-  saveLocal(); renderLedger(); closeEdit(); toast("已儲存");
+  saveLocal();
+  if (f.list === "pending") { renderPending(); closeEdit(); toast("已儲存"); return; }
+  renderLedger(); closeEdit(); toast("已儲存");
   pushLedger().catch(function () { toast("已儲存（本機；未同步）"); });
 }
 
@@ -966,6 +981,7 @@ function bind() {
     var b = e.target.closest("button[data-act]"); if (!b) return;
     var card = b.closest(".item"), id = card.getAttribute("data-id");
     var r = pending.filter(function (x) { return x.id === id; })[0]; if (!r) return;
+    if (b.getAttribute("data-act") === "p-edit") { openEdit(id); return; }
     if (b.getAttribute("data-act") === "p-del") {
       pending = pending.filter(function (x) { return x.id !== id; });
       saveLocal(); renderPending(); toast("已刪除");
