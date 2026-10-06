@@ -177,8 +177,8 @@ function loadRates(force) {
 var AI_DEBUG = null;   /* 出錯時用嚟顯示真正原因（模型、finish_reason、原話） */
 function callModel(parts) {
   /* parts: [{text:"…"} | {image:{mime,b64}}] */
-  if (!S.key) throw new Error("未設定 API Key（去「設定」）");
-  if (!S.base || !S.model) throw new Error("未設定 Base URL／模型（去「設定」）");
+  if (!S.key) return Promise.reject(new Error("❌ 未設定 API Key —— 去「設定」貼上 key，再按「測試連線」。"));
+  if (!S.base || !S.model) return Promise.reject(new Error("❌ 未設定 Base URL／模型 —— 去「設定」：服務商揀 Gemini 或 OpenRouter 會自動填好。"));
   /* 先驗證設定，避免請求去錯地方（Safari 只會報 Load failed，睇唔出原因） */
   var _b = (S.base || "").trim();
   if (S.style !== "gemini" && !/^https?:\/\//i.test(_b)) {
