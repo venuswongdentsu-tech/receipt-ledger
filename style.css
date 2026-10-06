@@ -94,6 +94,17 @@ label.f input[type=text]{text-overflow:ellipsis}
   .grid3.grid3-wide label.f.f-wide{grid-column:1/-1}
 }
 .item-act{display:flex; gap:8px; margin-top:10px; justify-content:flex-end}
+.pend-bar{display:flex; gap:8px; margin-top:4px}
+.pend-bar .btn{flex:1}
+.ro{font-size:12px; color:var(--mut); margin-top:7px}
+/* 編輯彈層（用手機全屏，避免細格重疊） */
+.sheet{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column}
+.sheet-top{display:flex; align-items:center; gap:8px; background:#fff; border-bottom:1px solid var(--line);
+  padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top))}
+.sheet-t{flex:1; min-width:0; font-size:14px; font-weight:700; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sheet-body{flex:1; overflow:auto; padding:14px; max-width:720px; width:100%; margin:0 auto;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom))}
 .cat-pill{display:inline-block; background:var(--light); color:var(--navy); border-radius:999px; padding:2px 9px; font-size:11px; font-weight:700}
 
 /* stats */
