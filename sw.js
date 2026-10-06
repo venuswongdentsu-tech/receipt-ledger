@@ -1,5 +1,5 @@
 /* 個人記帳 Service Worker：介面 network-first（永遠攞最新），斷網先食快取 */
-var CACHE = "ra-shell-v23";
+var CACHE = "ra-shell-v24";
 var ASSETS = ["./", "index.html", "app.js", "style.css", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", function (e) {
   self.skipWaiting();
