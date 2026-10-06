@@ -168,6 +168,7 @@ function loadRates(force) {
 }
 
 /* ───────────────────────── AI 呼叫 ───────────────────────── */
+var AI_DEBUG = null;   /* 出錯時用嚟顯示真正原因（模型、finish_reason、原話） */
 function callModel(parts) {
   /* parts: [{text:"…"} | {image:{mime,b64}}] */
   if (!S.key) throw new Error("未設定 API Key（去「設定」）");
@@ -191,27 +192,43 @@ function callModel(parts) {
         return { type: "image_url", image_url: { url: "data:" + p.image.mime + ";base64," + p.image.b64 } };
       }) }] };
   }
+  AI_DEBUG = { model: S.model, provider: S.provider, style: S.style,
+    hasImage: parts.some(function (p) { return !!p.image; }) };
   return fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
     .then(function (r) {
       return r.text().then(function (t) {
-        if (!r.ok) throw new Error("HTTP " + r.status + "：" + t.slice(0, 220));
-        var d; try { d = JSON.parse(t); } catch (e) { throw new Error("回應非 JSON：" + t.slice(0, 160)); }
+        AI_DEBUG.status = r.status;
+        if (!r.ok) throw new Error("HTTP " + r.status + "：" + t.slice(0, 320));
+        var d; try { d = JSON.parse(t); } catch (e) { AI_DEBUG.raw = t; throw new Error("回應非 JSON：" + t.slice(0, 200)); }
         if (S.style === "gemini") {
           var c = d.candidates && d.candidates[0];
-          if (!c) throw new Error("回應無內容：" + t.slice(0, 200));
+          if (!c) throw new Error("回應無內容：" + t.slice(0, 320));
+          AI_DEBUG.finish = c.finishReason || ""; AI_DEBUG.raw = t;
           return ((c.content && c.content.parts) || []).map(function (p) { return p.text || ""; }).join("");
         }
         var m = d.choices && d.choices[0] && d.choices[0].message;
-        if (!m) throw new Error("回應無內容：" + t.slice(0, 200));
-        return m.content || "";
+        if (!m) throw new Error("回應無內容：" + t.slice(0, 320));
+        AI_DEBUG.finish = d.choices[0].finish_reason || ""; AI_DEBUG.raw = t;
+        if (m.content == null || m.content === "") AI_DEBUG.empty = true;
+        return m.content || m.reasoning_content || m.reasoning || "";
       });
     });
 }
 
 function parseJSONLoose(text) {
-  text = (text || "").trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  var raw = (text || "").trim();
+  text = raw.replace(/```[a-zA-Z]*/g, "").trim();
   var a = text.indexOf("{"), b = text.lastIndexOf("}");
-  if (a < 0 || b < 0) throw new Error("AI 冇回傳 JSON：" + text.slice(0, 160));
+  if (a < 0 || b < 0) {
+    var why = !raw
+      ? "模型回覆完全空白 —— 最大機會係呢個模型【唔支援睇圖】（純文字模型），佢根本睇唔到張收據。"
+      : "模型冇用 JSON 格式回覆（佢可能只係講咗幾句人話，或者睇唔到圖）。";
+    var f = (AI_DEBUG && AI_DEBUG.finish) ? "（finish_reason：" + AI_DEBUG.finish + "）" : "";
+    throw new Error("AI 冇回傳 JSON。" + why + f +
+      "\n\n模型：" + ((AI_DEBUG && AI_DEBUG.model) || "?") +
+      "\n模型實際回覆：" + (raw ? raw.slice(0, 300) : "（空白）") +
+      "\n\n👉 去「設定」按「查模型」，揀有 🖼 標記（支援睇圖）嘅模型。");
+  }
   var d = JSON.parse(text.slice(a, b + 1));
   var rs = d && d.receipts;
   if (rs == null) rs = d && d.items ? [d] : [];
@@ -221,9 +238,12 @@ function parseJSONLoose(text) {
 function extractRows(photo) {
   var today = new Date().toISOString().slice(0, 10);
   var prompt = PROMPT.replace("{today}", today).replace("{cats}", CATS.join(" / "));
-  return callModel([{ text: prompt }, { image: { mime: photo.mime, b64: photo.b64 } }])
-    .then(parseJSONLoose)
-    .then(function (receipts) { return normalise(receipts, photo); });
+  var img = { image: { mime: photo.mime, b64: photo.b64 } };
+  return callModel([{ text: prompt }, img]).then(parseJSONLoose).catch(function (e1) {
+    /* 第一次失敗 → 加強指令再試一次（好多模型要人提佢先肯淨係出 JSON） */
+    var strict = { text: prompt + "\n\n⚠️ 極重要：只可以輸出一個 JSON 物件。唔可以有任何解釋、問候、道歉或 markdown 代碼框。" };
+    return callModel([strict, img]).then(parseJSONLoose).catch(function () { throw e1; });
+  }).then(function (receipts) { return normalise(receipts, photo); });
 }
 
 function normalise(receipts, photo) {
@@ -809,26 +829,40 @@ function bind() {
     fetch(url, { headers: hdr }).then(function (r) {
       return r.text().then(function (t) {
         if (!r.ok) throw new Error("HTTP " + r.status + "：" + t.slice(0, 200));
-        var d = JSON.parse(t), names = [];
+        var d = JSON.parse(t), names = [], imgOf = {};
         if (d.models) d.models.forEach(function (m) {
           var n = (m.name || "").replace(/^models\//, "");
           var ok = !m.supportedGenerationMethods || m.supportedGenerationMethods.indexOf("generateContent") >= 0;
-          if (ok) names.push(n);
+          if (ok) { names.push(n); imgOf[n] = true; }   /* Gemini 系列全部支援睇圖 */
         });
-        else if (d.data) d.data.forEach(function (m) { names.push(m.id); });
+        else if (d.data) d.data.forEach(function (m) {
+          names.push(m.id);
+          var mods = (m.architecture && m.architecture.input_modalities) || [];
+          /* 有講明就用佢；冇講（例如自訂 gateway）→ 當「未知」，唔可以當佢唔支援 */
+          imgOf[m.id] = mods.length ? mods.indexOf("image") >= 0 : null;
+        });
         if (!names.length) throw new Error("冇列出模型");
+        var isImg = function (n) { return imgOf[n] !== false; };
         var nice = names.filter(function (n) {
-          return /:free$/i.test(n) || /flash|gemini|gemma|gpt-|claude|qwen|inkling|nemotron|dots-/i.test(n);
+          return isImg(n) && (/:free$/i.test(n) ||
+            /flash|gemini|gemma|gpt-|claude|qwen|inkling|nemotron|dots-|vision|omni|llama-4|mistral/i.test(n));
         });
-        /* 免費模型（:free）排最前，方便慳錢 */
-        nice.sort(function (a, b) { return (/:free$/i.test(b) ? 1 : 0) - (/:free$/i.test(a) ? 1 : 0); });
-        var show = (nice.length ? nice : names).slice(0, 40);
+        nice.sort(function (a, b) {
+          var fa = /:free$/i.test(a) ? 0 : 1, fb = /:free$/i.test(b) ? 0 : 1;
+          if (fa !== fb) return fa - fb;
+          return a < b ? -1 : 1;
+        });
+        var show = (nice.length ? nice : names.filter(isImg)).slice(0, 40);
+        var noImg = names.filter(function (n) { return !isImg(n); }).slice(0, 8);
         var dl = $("models");
         if (dl) dl.innerHTML = show.map(function (n) { return '<option value="' + n + '"></option>'; }).join("");
         o.className = "hint ok";
-        o.innerHTML = "可用模型（按一下填入）：<br>" +
-          show.map(function (n) { return '<a href="#" class="mlink" data-m="' + n + '">' + n + "</a>"; }).join("<br>") +
-          (names.length > show.length ? "<br>（共 " + names.length + " 個）" : "");
+        o.innerHTML = "✅ 支援睇圖（讀到收據）——按一下填入，🆓 = 免費：<br>" +
+          show.map(function (n) {
+            return '<a href="#" class="mlink" data-m="' + n + '">' + (/:free$/i.test(n) ? "🆓 " : "🖼 ") + n + "</a>";
+          }).join("<br>") +
+          (names.length > show.length ? "<br>（共 " + names.length + " 個模型）" : "") +
+          (noImg.length ? '<br><br>🚫 <b>唔支援睇圖</b>（唔可以用嚟讀收據）：' + noImg.join("、") : "");
         Array.prototype.forEach.call(o.querySelectorAll(".mlink"), function (a) {
           a.addEventListener("click", function (e) {
             e.preventDefault();
