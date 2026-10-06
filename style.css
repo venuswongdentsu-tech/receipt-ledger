@@ -1,60 +1,78 @@
+/* ─────────────────────────────────────────────────────────────
+   個人記帳 — 極簡主題（v25）
+   設計參考：現代銀行 App — 淺灰底、白色圓角卡、黑白灰、零陰影、
+             圓形 icon 掣、線條 icon、大字金額。
+   注意：所有 class 名同之前一致（app.js 動態產生嘅都用同一套），
+         只係外觀換咗，功能零改動。
+   ───────────────────────────────────────────────────────────── */
 :root{
-  --navy:#1f3864; --blue:#2e5c9a; --light:#dce6f1; --bg:#f4f6fa;
-  --ok:#1e7d5a; --warn:#b8860b; --err:#b3261e; --line:#dde3ec; --txt:#152238; --mut:#6b7a90;
+  --bg:#f0f1f3;        /* 頁面底（淺灰） */
+  --card:#ffffff;      /* 卡 */
+  --ink:#111214;       /* 主字（近黑） */
+  --ink2:#3c3c43;      /* 次字 */
+  --mut:#8e8e93;       /* 副字（灰） */
+  --line:#e9e9ec;      /* 分隔線 */
+  --fill:#f2f2f4;      /* 淺灰填充（圓掣／輸入框） */
+  --accent:#111214;    /* 主色＝黑（極簡，唔用藍） */
+  --ok:#12805c; --warn:#a1690a; --err:#d70015; --err-bg:#fff1f0;
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+  /* 舊變數保留（app.js／舊標記如仍有引用都唔會爆） */
+  --navy:#111214; --blue:#111214; --light:#e6e6ea; --txt:#111214;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%;overflow:hidden}
 body{
-  font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang HK","Noto Sans TC","Microsoft JhengHei",sans-serif;
-  color:var(--txt); background:#fff;   /* bar 下面（Safari 工具列區）用白色，睇落似 bar 接住落去 */
-  overscroll-behavior-y:none;
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang HK","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  color:var(--ink); background:#fff;   /* bar 下面（Safari 工具列區）用白色，睇落似 bar 接住落去 */
+  overscroll-behavior-y:none; -webkit-font-smoothing:antialiased;
 }
 #app{height:100%; height:100dvh; display:flex; flex-direction:column}
 /* dvh 探針：量 CSS 100dvh 實際值（Safari 底部工具列會扣走）→ 同 visualViewport 取細 */
 #vhProbe{position:fixed; top:0; left:0; width:0; height:100dvh; pointer-events:none; visibility:hidden; z-index:-1}
 
-/* header */
+/* ── header：白底、黑字、大金額（極簡） ── */
 .hd{
-  flex:0 0 auto; background:linear-gradient(160deg,var(--navy),var(--blue)); color:#fff;
-  padding:calc(env(safe-area-inset-top) + 14px) 16px 14px;
+  flex:0 0 auto; background:#fff; color:var(--ink);
+  padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
   display:flex; align-items:flex-end; justify-content:space-between; gap:10px;
-  position:sticky; top:0; z-index:20; box-shadow:0 2px 10px rgba(20,40,80,.18);
+  position:sticky; top:0; z-index:20; border-bottom:1px solid var(--line);
 }
-.hd-t{font-size:19px; font-weight:700; letter-spacing:.5px}
-.hd-s{font-size:12px; opacity:.85; margin-top:2px}
+.hd-t{font-size:17px; font-weight:600; letter-spacing:.2px}
+.hd-s{font-size:12px; color:var(--mut); margin-top:2px}
 .hd-r{text-align:right}
-.hd-total{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums}
-.hd-hkd{font-size:11px; opacity:.8}
+.hd-total{font-size:26px; font-weight:700; letter-spacing:-.6px; font-variant-numeric:tabular-nums}
+.hd-hkd{font-size:11px; color:var(--mut); margin-top:1px}
 
-/* views */
+/* ── views ── */
 /* ⚠ 關鍵：唔可以有 rule 直接用 display 蓋過 hidden 屬性（.view{display:block} / .overlay{display:flex} 會令 [hidden] 失效，
    遮罩同所有 panel 會一齊顯示，畫面卡住喺「處理中」）。以下一行強制 hidden 生效。 */
 [hidden]{display:none !important}
 #views{flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
   background:var(--bg);
-  overscroll-behavior:contain; padding:14px 14px calc(20px + env(safe-area-inset-bottom))}
+  overscroll-behavior:contain; padding:16px 16px calc(26px + env(safe-area-inset-bottom))}
 .view{display:block; max-width:720px; width:100%; margin:0 auto}
-.card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px}
-.sec-h{font-size:13px; color:var(--mut); margin:16px 4px 8px; font-weight:600}
-.empty{text-align:center; color:var(--mut); padding:34px 16px; font-size:14px}
+.card{background:var(--card); border:0; border-radius:var(--r-lg); padding:16px; margin-bottom:12px}
+.sec-h{font-size:16px; font-weight:600; color:var(--ink); margin:20px 2px 10px}
+.empty{text-align:center; color:var(--mut); padding:38px 16px; font-size:13.5px; line-height:1.7}
 
-/* buttons */
+/* ── buttons：膠囊、淺灰填充、主掣全黑 ── */
 .btn{
-  appearance:none; border:1px solid var(--line); background:#fff; color:var(--txt);
-  border-radius:10px; padding:10px 14px; font-size:15px; font-weight:600; cursor:pointer;
+  appearance:none; border:0; background:var(--fill); color:var(--ink); font-family:inherit;
+  border-radius:999px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer;
+  transition:transform .12s,background .15s;
 }
 .btn:active{transform:scale(.97)}
-.btn-primary{background:var(--blue); border-color:var(--blue); color:#fff}
-.btn-danger{border-color:#f0c9c6; color:var(--err)}
-.btn-lg{width:100%; padding:14px; font-size:17px; margin-top:12px}
-.btn-sm{padding:6px 10px; font-size:13px; border-radius:8px}
-.tools{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px}
-.tools .btn{flex:1; min-width:104px}
-.row{display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap}
-.hint{font-size:12px;color:var(--mut);line-height:1.5}
+.btn-primary{background:var(--accent); color:#fff}
+.btn-danger{background:var(--err-bg); color:var(--err)}
+.btn-lg{width:100%; padding:15px; font-size:16px; margin-top:14px}
+.btn-sm{padding:7px 13px; font-size:13px; border-radius:999px}
+.tools{display:flex; gap:6px; margin:2px 0 16px}
+.row{display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap}
+.row .btn{flex:0 1 auto}
+.hint{font-size:12px;color:var(--mut);line-height:1.6}
 .hint.ok{color:var(--ok)} .hint.err{color:var(--err)}
 /* 可摺疊提示（預設收埋，唔會一開就見到） */
-.fold{margin-top:6px}
+.fold{margin-top:8px}
 .fold>summary{cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:5px;
   font-size:11.5px; font-weight:500; color:var(--mut); padding:8px 10px 8px 0;
   background:none; border:0; border-radius:0; letter-spacing:.2px}
@@ -63,133 +81,151 @@ body{
 .fold[open]>summary::before{content:"▾"}
 .fold[open]>summary{margin-bottom:6px}
 .fold>.hint,.fold>.set-p{margin-top:6px}
-.mlink{display:inline-block;color:var(--blue);text-decoration:none;font-size:12.5px;padding:1px 0}
+.mlink{display:inline-block;color:var(--ink);text-decoration:none;font-size:12.5px;padding:1px 0;border-bottom:1px solid var(--line)}
 
-/* upload */
-.up-card{text-align:center}
-.up-ico{font-size:44px; line-height:1}
-.up-h{font-size:18px; font-weight:700; margin-top:6px}
-.up-p{font-size:13px; color:var(--mut); margin:4px 0 0}
-.up-note{font-size:11px; color:var(--mut); margin-top:10px}
+/* ── 圓形 action 掣（明細工具列；參考圖嘅 Send / Add funds 一排） ── */
+.act{flex:1; appearance:none; border:0; background:none; padding:6px 0; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:7px; font-family:inherit}
+.act-i{width:50px; height:50px; border-radius:50%; background:#fff; color:var(--ink);
+  display:flex; align-items:center; justify-content:center; transition:background .15s,transform .12s}
+.act-i svg{width:22px; height:22px}
+.act-l{font-size:11px; font-weight:500; color:var(--ink2); letter-spacing:.1px}
+.act:active .act-i{transform:scale(.94); background:#ececef}
 
-/* queue */
+/* ── upload ── */
+.up-card{text-align:center; padding:26px 18px 20px}
+.up-ico{width:66px; height:66px; border-radius:50%; background:var(--fill); color:var(--ink);
+  display:flex; align-items:center; justify-content:center; margin:0 auto}
+.up-ico svg{width:28px; height:28px}
+.up-h{font-size:18px; font-weight:600; margin-top:14px; letter-spacing:.1px}
+.up-p{font-size:13px; color:var(--mut); margin:6px 0 0}
+.up-note{font-size:11.5px; color:var(--mut); margin-top:14px; line-height:1.6}
+
+/* ── queue ── */
 .queue{margin-top:4px}
-.q{background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; display:flex; gap:10px; align-items:center}
-.q img{width:44px; height:44px; object-fit:cover; border-radius:8px; background:var(--light)}
+.q{background:var(--card); border:0; border-radius:var(--r-md); padding:12px; margin-bottom:10px; display:flex; gap:12px; align-items:center}
+.q img{width:46px; height:46px; object-fit:cover; border-radius:12px; background:var(--fill)}
 .q-b{flex:1; min-width:0}
-.q-t{font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.q-s{font-size:12px; color:var(--mut)}
-.q .st{font-size:18px}
+.q-t{font-size:14.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.q-s{font-size:12px; color:var(--mut); margin-top:1px}
+.q .st{font-size:11px; line-height:1; flex:0 0 auto}
 .bad{color:var(--err)}
 
-/* pending + ledger rows */
+/* ── pending + ledger cards ── */
 .pend-list,.led-list{display:flex; flex-direction:column; gap:10px}
-.item{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px}
+.item{background:var(--card); border:0; border-radius:var(--r-md); padding:15px}
 /* 卡片：左右兩欄（左＝資料、右＝價錢＋操作），每項獨立一行 */
 .item-grid{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 12px; align-items:start}
 .item-l{min-width:0}
-.item-name{font-size:15px; font-weight:700; line-height:1.3; word-break:break-word}
-.item-orig{font-size:11px; color:var(--mut); margin-top:3px; word-break:break-word}
-.item-row{display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px; font-size:12.5px; margin-top:5px; line-height:1.35}
+.item-name{font-size:15px; font-weight:600; line-height:1.35; word-break:break-word; letter-spacing:.1px}
+.item-orig{font-size:11.5px; color:var(--mut); margin-top:3px; word-break:break-word}
+.item-row{display:grid; grid-template-columns:auto minmax(0,1fr); gap:7px; font-size:12.5px; margin-top:6px; line-height:1.4}
 .item-row .k{color:var(--mut)}
-.item-row .v{min-width:0; word-break:break-word}
+.item-row .v{min-width:0; word-break:break-word; color:var(--ink2)}
 .item-r{display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right}
-.item-amt{font-variant-numeric:tabular-nums; font-weight:700; font-size:15px; white-space:nowrap}
-.item-hkd{font-size:12px; color:var(--navy); font-weight:600; white-space:nowrap}
-.item-r .item-act{margin-top:6px; max-width:170px}
+.item-amt{font-variant-numeric:tabular-nums; font-weight:700; font-size:16px; white-space:nowrap; letter-spacing:-.3px}
+.item-hkd{font-size:12px; color:var(--mut); font-weight:500; white-space:nowrap}
+.item-r .item-act{margin-top:4px; max-width:180px}
+.item-act{display:flex; gap:6px; margin-top:10px; justify-content:flex-end}
 .grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px}
 /* ⚠ 一定要 minmax(0,1fr)：純 1fr 嘅最小闊度＝內容最小闊度，而 <input type=date> 內建最小闊度
    好大 → 會撐爆欄位，令日期同商店兩格重疊／商店文字被切。 */
 .grid3{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:8px}
-label.f{font-size:11px; color:var(--mut); display:block; min-width:0}
+label.f{font-size:12px; color:var(--mut); display:block; min-width:0}
 label.f input,label.f select{
-  width:100%; min-width:0; max-width:100%; margin-top:2px; padding:8px; font-size:14px;
-  border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--txt); font-family:inherit;
+  width:100%; min-width:0; max-width:100%; margin-top:5px; padding:11px 12px; font-size:14.5px;
+  border:0; border-radius:var(--r-sm); background:var(--fill); color:var(--ink); font-family:inherit;
+  appearance:none;
 }
-label.f input[type=date]{padding-left:6px; padding-right:6px}
+label.f input:focus,label.f select:focus,.fld input:focus,.fld select:focus{outline:0; box-shadow:0 0 0 2px rgba(17,18,20,.14)}
+label.f input[type=date]{padding-left:10px; padding-right:10px}
 label.f input[type=text]{text-overflow:ellipsis}
 /* 窄機（手機 ≤400px）：第二行改「類別｜日期」兩欄，商店獨佔一行 → 唔會再重疊 */
 @media (max-width:400px){
   .grid3.grid3-wide{grid-template-columns:repeat(2,minmax(0,1fr))}
   .grid3.grid3-wide label.f.f-wide{grid-column:1/-1}
 }
-.item-act{display:flex; gap:8px; margin-top:10px; justify-content:flex-end}
-.pend-bar{display:flex; gap:8px; margin-top:4px}
+.pend-bar{display:flex; gap:8px; margin-top:12px}
 .pend-bar .btn{flex:1}
 .ro{font-size:12px; color:var(--mut); margin-top:7px}
 /* 編輯彈層（用手機全屏，避免細格重疊） */
 .sheet{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column}
 .sheet-top{display:flex; align-items:center; gap:8px; background:#fff; border-bottom:1px solid var(--line);
   padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top))}
-.sheet-t{flex:1; min-width:0; font-size:14px; font-weight:700; text-align:center;
+.sheet-t{flex:1; min-width:0; font-size:14px; font-weight:600; text-align:center;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.sheet-body{flex:1; overflow:auto; padding:14px; max-width:720px; width:100%; margin:0 auto;
-  padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+.sheet-body{flex:1; overflow:auto; padding:16px; max-width:720px; width:100%; margin:0 auto;
+  padding-bottom:calc(30px + env(safe-area-inset-bottom))}
 
 /* 編輯明細彈層：一個欄位一行 */
 .edform{display:block}
-.edrow{margin-top:10px}
+.edrow{margin-top:12px}
 .edrow:first-child{margin-top:0}
 .edrow .grid2{margin-top:0}
 .edform label.f{font-size:12px}
-.edform label.f input,.edform label.f select{padding:11px 10px; font-size:15px; border-radius:10px}
+.edform label.f input,.edform label.f select{padding:12px; font-size:15px; border-radius:var(--r-sm)}
 
-/* stats */
-.stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-bottom:12px}
-.st{background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px}
-.st-k{font-size:11px; color:var(--mut)}
-.st-v{font-size:16px; font-weight:700; font-variant-numeric:tabular-nums}
-.bar{height:6px; background:var(--light); border-radius:3px; margin-top:6px; overflow:hidden}
-.bar>i{display:block; height:100%; background:var(--blue)}
+/* ── stats：白色小卡、大數字、單色進度條 ── */
+.stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:16px}
+.st{background:var(--card); border:0; border-radius:var(--r-md); padding:13px 14px}
+.st-k{font-size:11.5px; color:var(--mut)}
+.st-v{font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.4px; margin-top:2px}
+.bar{height:5px; background:var(--fill); border-radius:99px; margin-top:8px; overflow:hidden}
+.bar>i{display:block; height:100%; background:var(--accent); border-radius:99px}
 
-/* recent */
-.recent{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:8px}
-.recent a,.recent span{display:block; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px; font-size:11px; color:var(--txt); text-decoration:none; overflow:hidden}
-.recent img{width:100%; height:64px; object-fit:cover; border-radius:6px; background:var(--light); display:block}
+/* ── recent ── */
+.recent{display:grid; grid-template-columns:repeat(auto-fill,minmax(98px,1fr)); gap:10px}
+.recent a,.recent span{display:block; background:var(--card); border:0; border-radius:var(--r-sm); padding:8px; font-size:11px; color:var(--ink); text-decoration:none; overflow:hidden}
+.recent img{width:100%; height:66px; object-fit:cover; border-radius:9px; background:var(--fill); display:block}
 
-/* settings */
-.set-h{font-size:15px; font-weight:700; color:var(--navy); margin-bottom:6px}
-.set-p{font-size:12px; color:var(--mut); margin-bottom:10px; line-height:1.45}
-.fld{display:block; font-size:12px; color:var(--mut); margin-top:10px}
+/* ── settings ── */
+.set-h{font-size:16px; font-weight:600; color:var(--ink); margin-bottom:8px}
+.set-p{font-size:12px; color:var(--mut); margin-bottom:10px; line-height:1.6}
+.fld{display:block; font-size:12px; color:var(--mut); margin-top:12px}
 .fld input,.fld select{
-  width:100%; margin-top:4px; padding:11px; font-size:15px; border:1px solid var(--line);
-  border-radius:10px; background:#fff; color:var(--txt); font-family:inherit;
+  width:100%; margin-top:5px; padding:12px; font-size:15px; border:0;
+  border-radius:var(--r-sm); background:var(--fill); color:var(--ink); font-family:inherit; appearance:none;
 }
 
-/* tabs */
+/* ── tabs：白底、線條 icon、active 黑 ── */
 /* 底部 tab bar：刻意唔用 position:fixed。
    用 flex app-shell（#app 高 100dvh、#views 自己滾動），個 bar 係最後一個 flex 項目，
    所以無論手機工具列收放、PWA 定瀏覽器，都一定貼實裝置底部。 */
 .tabs{
   flex:0 0 auto; position:relative; z-index:30; display:flex;
-  background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
-  border-top:1px solid var(--line);
+  background:#fff; border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);
   padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
 }
 .tab{
-  flex:1; appearance:none; border:0; background:none; padding:8px 4px 10px;
-  font-size:11px; color:var(--mut); font-weight:600; cursor:pointer; position:relative;
-  display:flex; flex-direction:column; align-items:center; gap:2px;
+  flex:1; appearance:none; border:0; background:none; padding:9px 4px 7px;
+  font-size:10px; color:#a1a1a6; font-weight:500; cursor:pointer; font-family:inherit;
+  display:flex; flex-direction:column; align-items:center; gap:4px; position:relative;
 }
-.tab span{font-size:20px; line-height:1.1}
-.tab.is-on{color:var(--blue)}
+.tab svg{width:23px; height:23px; display:block}
+.tab .tab-l{font-size:10px; line-height:1.2}
+.tab.is-on{color:var(--ink)}
+.tab.is-on svg{stroke-width:2.3}
 .badge{
-  position:absolute; top:4px; left:50%; margin-left:6px; background:var(--err); color:#fff;
-  font-size:10px; font-style:normal; border-radius:999px; padding:1px 5px; font-weight:700;
+  position:absolute; top:3px; left:50%; margin-left:7px; background:var(--accent); color:#fff;
+  font-size:10px; font-style:normal; border-radius:999px; padding:1px 6px; font-weight:600;
 }
 
-/* overlay + toast */
+/* ── icon（線條 SVG 統一樣式） ── */
+.ico{fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+.tab .ico{stroke-width:1.8}
+
+/* ── overlay + toast ── */
 .overlay{
-  position:fixed; inset:0; background:rgba(18,28,48,.45); z-index:60;
+  position:fixed; inset:0; background:rgba(17,18,20,.42); z-index:60;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
   color:#fff; font-size:14px; padding:20px; text-align:center;
 }
-.spinner{width:38px;height:38px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+.spinner{width:34px;height:34px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .toast{
-  position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom)); transform:translate(-50%,20px);
-  background:#152238; color:#fff; font-size:13px; padding:10px 14px; border-radius:10px;
+  position:fixed; left:50%; bottom:calc(88px + env(safe-area-inset-bottom)); transform:translate(-50%,20px);
+  background:var(--ink); color:#fff; font-size:13px; padding:11px 16px; border-radius:var(--r-sm);
   max-width:88vw; opacity:0; pointer-events:none; transition:opacity .2s,transform .2s; z-index:70;
   word-break:break-word;
 }
