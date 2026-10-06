@@ -25,7 +25,7 @@ var CAT_ALIAS = { "餐飲美食": "餐飲", "飲食": "餐飲", "餐廳": "餐�
 var PROVIDERS = {
   openrouter: {
     style: "openai", base: "https://openrouter.ai/api/v1",
-    model: "google/gemma-4-31b-it:free",
+    model: "google/gemma-4-26b-a4b-it:free",   /* 實測 uptime 較高 */
     label: "OpenRouter",
     note: "香港可用・支援睇圖・有免費模型（50 次/日）",
     keyUrl: "https://openrouter.ai/keys",
@@ -225,21 +225,36 @@ function loadRates(force) {
 
 /* ───────────────────────── AI 呼叫 ───────────────────────── */
 var AI_DEBUG = null;   /* 出錯時用嚟顯示真正原因（模型、finish_reason、原話） */
-function callModel(parts) {
+
+/* v10：OpenRouter 免費＋支援睇圖嘅模型（按實測 uptime 排序）；擠塞(429)時自動輪住試 */
+var FREE_FALLBACK = [
+  "google/gemma-4-26b-a4b-it:free",
+  "thinkingmachines/inkling-small:free",
+  "dots-studio/dots-3-note-preview:free",
+  "google/gemma-4-31b-it:free",
+  "thinkingmachines/inkling:free"
+];
+var MODEL_NOTE = "";
+
+function isRateLimit(txt, status) { return status === 429 || /rate.?limit|too many requests|\b429\b/i.test(txt || ""); }
+function isDailyCap(txt) { return /free-models?-per-day|add .{0,14}credit|per day|每日/i.test(txt || ""); }
+function rateLimitMsg(txt, status) {
+  var cap = isDailyCap(txt);
+  return "🚦 HTTP " + (status || 429) + "：免費模型暫時擠塞" + (cap ? "／今日免費額度已用完" : "") + "。\n\n" +
+    "OpenRouter 免費 tier：20 次/分鐘、50 次/日（全帳號計）。\n" +
+    (cap
+      ? "👉 已撞到「今日免費上限」，轉型號都幫唔到：①等明日再試 ②去 openrouter.ai 入 US$10 credits（即升到 1000 次/日）③或改用 Mistral／阿里 Qwen。"
+      : "👉 App 已經自動試過幾個免費睇圖模型（" + FREE_FALLBACK.slice(0, 3).join("、") + " …）。仲擠塞就：①等 1 分鐘再按 ②設定→「查模型」揀另一個 🆓 型號 ③入 US$10 credits 升到 1000 次/日。") +
+    "\n\n伺服器原話：" + (txt || "").slice(0, 220);
+}
+
+function _postModel(parts, useModel) {
   /* parts: [{text:"…"} | {image:{mime,b64}}] */
-  if (!S.key) return Promise.reject(new Error("❌ 未設定 API Key —— 去「設定」貼上 key，再按「測試連線」。"));
-  if (!S.base || !S.model) return Promise.reject(new Error("❌ 未設定 Base URL／模型 —— 去「設定」：服務商揀 Gemini 或 OpenRouter 會自動填好。"));
-  /* 先驗證設定，避免請求去錯地方（Safari 只會報 Load failed，睇唔出原因） */
-  var _b = (S.base || "").trim();
-  if (S.style !== "gemini" && !/^https?:\/\//i.test(_b)) {
-    return Promise.reject(new Error(
-      "❌ Base URL 未填好（而家係「" + (_b || "空白") + "」），所以請求去咗錯嘅地方。\n" +
-      "👉 去「設定」：服務商揀 Gemini 或 OpenRouter 會自動填 Base URL；揀「自訂」就要自己填完整網址（例如 https://xxx/v1）。"));
-  }
+  useModel = useModel || S.model;
   var url, headers = { "Content-Type": "application/json" }, body;
 
   if (S.style === "gemini") {
-    url = S.base.replace(/\/+$/, "") + "/models/" + encodeURIComponent(S.model) + ":generateContent";
+    url = S.base.replace(/\/+$/, "") + "/models/" + encodeURIComponent(useModel) + ":generateContent";
     headers["x-goog-api-key"] = S.key;
     body = { contents: [{ parts: parts.map(function (p) {
       if (p.text != null) return { text: p.text };
@@ -248,7 +263,7 @@ function callModel(parts) {
   } else {
     url = S.base.replace(/\/+$/, "") + "/chat/completions";
     headers["Authorization"] = "Bearer " + S.key;
-    body = { model: S.model, temperature: 0,
+    body = { model: useModel, temperature: 0,
       max_tokens: 4000,
       messages: [{ role: "user", content: parts.map(function (p) {
         if (p.text != null) return { type: "text", text: p.text };
@@ -256,7 +271,7 @@ function callModel(parts) {
       }) }] };
   }
   var _payloadKB = Math.round(JSON.stringify(body).length / 1024);
-  AI_DEBUG = { model: S.model, provider: S.provider, style: S.style, endpoint: url, payloadKB: _payloadKB,
+  AI_DEBUG = { model: useModel, provider: S.provider, style: S.style, endpoint: url, payloadKB: _payloadKB,
     hasImage: parts.some(function (p) { return !!p.image; }) };
   return fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) })
     .catch(function (e) {
@@ -268,12 +283,16 @@ function callModel(parts) {
         "① 呢個供應商唔准網頁直接呼叫（CORS）—— OpenAI 官方、DeepSeek 官方、Anthropic 官方都係咁，必定出 Load failed\n" +
         "② Base URL 打錯、多咗空格、或者漏咗 /v1\n" +
         "③ 手機網絡一時間唔穩（可以再試一次）\n\n" +
-        "👉 最穩陣：服務商改揀 Gemini（有免費額度、支援睇圖）或 OpenRouter，再按「測試連線」。");
+        "👉 最穩陣：服務商揀 OpenRouter（香港可用、有免費睇圖模型）；設定好之後按「測試連線」。");
     })
     .then(function (r) {
       return r.text().then(function (t) {
         AI_DEBUG.status = r.status;
-        if (!r.ok) throw new Error("HTTP " + r.status + "：" + t.slice(0, 320));
+        if (!r.ok) {
+          if (isRateLimit(t, r.status)) throw new Error(rateLimitMsg(t, r.status));
+          if (r.status === 402) throw new Error("💳 HTTP 402：呢個模型要付費／credit 不足。\n\n👉 去「設定」按「查模型」揀有 🆓 嘅免費型號，或去 openrouter.ai 入 credit。\n伺服器原話：" + t.slice(0, 200));
+          throw new Error("HTTP " + r.status + "：" + t.slice(0, 320));
+        }
         var d; try { d = JSON.parse(t); } catch (e) { AI_DEBUG.raw = t; throw new Error("回應非 JSON：" + t.slice(0, 200)); }
         if (S.style === "gemini") {
           var c = d.candidates && d.candidates[0];
@@ -288,6 +307,39 @@ function callModel(parts) {
         return m.content || m.reasoning_content || m.reasoning || "";
       });
     });
+}
+
+function callModel(parts, onNote) {
+  if (!S.key) return Promise.reject(new Error("❌ 未設定 API Key —— 去「設定」貼上 key，再按「測試連線」。"));
+  if (!S.base || !S.model) return Promise.reject(new Error("❌ 未設定 Base URL／模型 —— 去「設定」：服務商揀 OpenRouter 會自動填好。"));
+  var _b = (S.base || "").trim();
+  if (S.style !== "gemini" && !/^https?:\/\//i.test(_b)) {
+    return Promise.reject(new Error(
+      "❌ Base URL 未填好（而家係「" + (_b || "空白") + "」），所以請求去咗錯嘅地方。\n" +
+      "👉 去「設定」：服務商揀 OpenRouter 會自動填 Base URL；揀「自訂」就要自己填完整網址（例如 https://xxx/v1）。"));
+  }
+  /* 免費模型 429 時，自動輪住試其他免費睇圖模型（只限 OpenRouter） */
+  var chain = [S.model], used = "";
+  if (/openrouter\.ai/i.test(_b)) FREE_FALLBACK.forEach(function (n) { if (chain.indexOf(n) < 0) chain.push(n); });
+  var say = function (m) { if (typeof onNote === "function") onNote(m); };
+  var attempt = function (k, lastErr) {
+    if (k >= chain.length || k > 3) return Promise.reject(lastErr || new Error("冇可用模型"));
+    if (k > 0) say("⏳ " + chain[k - 1] + " 擠塞，自動改用 " + chain[k] + "…");
+    return _postModel(parts, chain[k]).then(function (t) { used = chain[k]; return t; })
+      .catch(function (e) {
+        var m = String((e && e.message) || "");
+        if (k + 1 < chain.length && k < 3 && isRateLimit(m) && !isDailyCap(m)) return attempt(k + 1, e);
+        throw e;
+      });
+  };
+  return attempt(0).then(function (txt) {
+    if (used && used !== S.model) {
+      S.model = used; saveSettings();
+      if ($("fModel")) $("fModel").value = used;
+      MODEL_NOTE = "已自動改用 " + used + "（原本嘅模型擠塞）";
+    }
+    return txt;
+  });
 }
 
 function parseJSONLoose(text) {
@@ -310,14 +362,14 @@ function parseJSONLoose(text) {
   return Array.isArray(rs) ? rs : [];
 }
 
-function extractRows(photo) {
+function extractRows(photo, note) {
   var today = new Date().toISOString().slice(0, 10);
   var prompt = PROMPT.replace("{today}", today).replace("{cats}", CATS.join(" / "));
   var img = { image: { mime: photo.mime, b64: photo.b64 } };
-  return callModel([{ text: prompt }, img]).then(parseJSONLoose).catch(function (e1) {
+  return callModel([{ text: prompt }, img], note).then(parseJSONLoose).catch(function (e1) {
     /* 第一次失敗 → 加強指令再試一次（好多模型要人提佢先肯淨係出 JSON） */
     var strict = { text: prompt + "\n\n⚠️ 極重要：只可以輸出一個 JSON 物件。唔可以有任何解釋、問候、道歉或 markdown 代碼框。" };
-    return callModel([strict, img]).then(parseJSONLoose).catch(function () { throw e1; });
+    return callModel([strict, img], note).then(parseJSONLoose).catch(function () { throw e1; });
   }).then(function (receipts) { return normalise(receipts, photo); });
 }
 
@@ -608,7 +660,9 @@ function handleFiles(list) {
   }
   var i = 0;
   var step = function () {
-    if (i >= files.length) { ov(false); saveLocal(); renderAll(); toast("辨識完成，去「待確認」覆核"); return; }
+    if (i >= files.length) { ov(false); saveLocal(); renderAll();
+      if (MODEL_NOTE) { toast(MODEL_NOTE); MODEL_NOTE = ""; } else toast("辨識完成，去「待確認」覆核");
+      return; }
     var f = files[i++];
     var card = document.createElement("div");
     card.className = "q"; card.id = "q" + i;
@@ -624,7 +678,7 @@ function handleFiles(list) {
         card.querySelector(".q-s").innerHTML = '<span class="bad">暫不支援 PDF，請用相片或截圖</span>';
         return;
       }
-      return extractRows(photo).then(function (rows) {
+      return extractRows(photo, function (m) { card.querySelector(".q-s").textContent = m; }).then(function (rows) {
         if (!rows.length) {
           card.querySelector(".st").textContent = "🤷";
           card.querySelector(".q-s").textContent = "冇辨識到項目";
@@ -978,9 +1032,15 @@ function bind() {
     S.style = (S.provider === "gemini" || /generativelanguage\.googleapis\.com/.test(S.base)) ? "gemini" : "openai";
     saveSettings();
     var o = $("testOut"); o.className = "hint"; o.textContent = "測試中…";
-    callModel([{ text: 'Reply with exactly: {"ok":true}' }]).then(function (t) {
-      o.className = "hint ok"; o.textContent = "✓ 連線成功：" + (t || "").slice(0, 40);
-    }).catch(function (e) { o.className = "hint err"; o.textContent = "✗ " + e.message.slice(0, 160); });
+    callModel([{ text: 'Reply with exactly: {"ok":true}' }], function (m) { o.className = "hint"; o.textContent = m; })
+      .then(function (t) {
+        o.className = "hint ok";
+        o.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:0">' +
+          esc("✓ 連線成功（模型：" + S.model + "）→ " + (t || "").slice(0, 60)) + "</pre>";
+      }).catch(function (e) {
+        o.className = "hint err";
+        o.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.45;margin:0">✗ ' + esc(e.message) + "</pre>";
+      });
   });
   /* 診斷連線：一次過列出所有相關資訊（方便搵出 Load failed 嘅原因） */
   $("btnDiag").addEventListener("click", function () {
@@ -996,7 +1056,7 @@ function bind() {
       "API Key：" + (S.key ? "已填（" + S.key.length + " 字）" : "未填"),
       "資料 repo：" + (S.repo || "未填") + "｜token：" + (S.token ? "已填" : "未填"),
       "網頁：" + location.href];
-    callModel([{ text: 'Reply with exactly: {"ok":true}' }]).then(function (t) {
+    callModel([{ text: 'Reply with exactly: {"ok":true}' }], function (m) { rep.push("自動轉型號：" + m); }).then(function (t) {
       rep.push("文字連線：✓ 成功 → " + (t || "").slice(0, 80));
     }).catch(function (e) {
       rep.push("文字連線：✗ 失敗", e.message);
