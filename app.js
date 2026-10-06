@@ -129,7 +129,13 @@ ov = function (on, txt) {
 /* 已知唔支援睇圖嘅純文字模型 → 讀唔到收據（早啲提你，唔好白費 request） */
 function looksTextOnly(m) {
   m = (m || "").toLowerCase();
-  return /deepseek|dolphin|mixtral|command-r|o1-mini|o1-preview|gpt-3\.5|text-davinci|qwen-?2|yi-|gemma-2|phi-3/.test(m);
+  /* v13：先查「查模型」由 API 攞到嘅真實資料（input_modalities）。
+     舊版一刀切攔 deepseek 係錯 —— DeepSeek 已有支援睇圖嘅新型號（deepseek-v4.1-flash）。 */
+  var map = {};
+  try { map = JSON.parse(localStorage.getItem("ra.visionMap") || "{}") || {}; } catch (e) { map = {}; }
+  if (map[m] === true) return false;
+  if (map[m] === false) return true;
+  return /deepseek-(chat|r1|v3|coder|pro|v4-pro)|dolphin|mixtral|command-r|o1-mini|o1-preview|gpt-3\.5|text-davinci|yi-|gemma-2|phi-3/.test(m);
 }
 
 function needsTranslation(name) {
@@ -737,7 +743,7 @@ function handleFiles(list) {
   if (!files.length) return;
   if (!S.key) { toast("請先去「設定」填 API Key", true); go("set"); return; }
   if (looksTextOnly(S.model)) {
-    toast("⚠️ 模型「" + S.model + "」應該係純文字模型（睇唔到圖），大機會讀唔到收據", true);
+    toast("⚠️ 模型「" + S.model + "」唔支援圖像輸入（睇唔到圖）→ 大機會讀唔到收據。建議改 thinkingmachines/inkling-small:free", true);
   }
   var i = 0;
   var step = function () {
@@ -1067,6 +1073,7 @@ function bind() {
         });
         if (!names.length) throw new Error("冇列出模型");
         /* 只保留「支援睇圖」：API 有講就用 API；冇講就用該供應商已知嘅睇圖型號規則 */
+        try { localStorage.setItem("ra.visionMap", JSON.stringify(imgOf)); } catch (e) {}
         var isImg = function (n) {
           if (imgOf[n] === false) return false;
           if (imgOf[n] === true) return true;
@@ -1076,7 +1083,7 @@ function bind() {
         var imgs = names.filter(isImg);
         var hidden = names.length - imgs.length;
         var nice = imgs.filter(function (n) {
-          return /:free$/i.test(n) || /vl|vision|omni|gemma|inkling|nemotron|dots-|pixtral|mistral-(small|medium|large)-(latest|2\d{3})|qwen3\./i.test(n);
+          return /:free$/i.test(n) || /vl|vision|omni|gemma|inkling|nemotron|dots-|pixtral|mistral-(small|medium|large)-(latest|2\d{3})|qwen3\.|deepseek-v4/i.test(n);
         });
         nice.sort(function (a, b) {
           var ga = HK_BLOCKED_RX.test(a) ? 1 : 0, gb = HK_BLOCKED_RX.test(b) ? 1 : 0;
