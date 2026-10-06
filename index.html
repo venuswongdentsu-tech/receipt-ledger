@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="app">
@@ -94,6 +94,7 @@
           <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"></option>
           <option value="openrouter/free"></option>
         </datalist>
+        <div class="hint">⚠️ 模型必須 <b>支援睇圖</b>（讀收據要睇相）。純文字模型（例如 deepseek、gpt-3.5）會出現「AI 冇回傳 JSON」。唔肯定就按「查模型」，揀有 🖼 或 🆓 標記嘅。</div>
         <div class="row">
           <button class="btn" id="btnTest">測試連線</button>
           <button class="btn" id="btnModels">查模型</button>
@@ -122,7 +123,7 @@
           <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
-        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v4</b>（如你見到唔係 v4，請重新載入）</div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v5</b>（如你見到唔係 v5，請重新載入）</div>
       </div>
     </section>
 
@@ -138,6 +139,6 @@
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
