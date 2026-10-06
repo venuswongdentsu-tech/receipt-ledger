@@ -702,7 +702,7 @@ function itemCard(r, mode) {
   var left = '<div class="item-l">'
     + '<div class="item-name">' + esc(r.product || "（未命名）") + "</div>" + orig
     + row("商店", esc(r.store || ""))
-    + row("類別", '<span class="cat-pill">' + esc(r.category || "其他") + "</span>")
+    + row("類別", esc(r.category || "其他"))
     + row("數量", String(r.qty || 1))
     + row("日期", esc((r.date || "") + (r.time ? " " + r.time : "")))
     + "</div>";
