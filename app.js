@@ -675,14 +675,20 @@ function fieldGrid(r) {
     return '<option value="' + c + '"' + (c === r.category ? " selected" : "") + ">" + c + "</option>"; }).join("");
   var curOpts = Object.keys(DEFAULT_RATES).concat(["JPY", "CNY"]).filter(function (c, i, a) { return a.indexOf(c) === i; })
     .map(function (c) { return '<option value="' + c + '"' + (c === r.currency ? " selected" : "") + ">" + c + "</option>"; }).join("");
-  return '<div class="grid3">'
-    + '<label class="f">數量<input type="number" step="any" data-k="qty" value="' + (r.qty || 1) + '"></label>'
-    + '<label class="f">金額<input type="number" step="any" data-k="amount" value="' + (r.amount || 0) + '"></label>'
-    + '<label class="f">幣別<select data-k="currency">' + curOpts + "</select></label></div>"
-    + '<div class="grid3 grid3-wide">'
-    + '<label class="f">類別<select data-k="category">' + opts + "</select></label>"
-    + '<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>'
-    + '<label class="f f-wide">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label></div>';
+  /* 編輯明細：一個欄位一行（手機好讀、唔會重疊） */
+  var R = function (inner) { return '<div class="edrow">' + inner + "</div>"; };
+  return '<div class="edform">'
+    + R('<label class="f">日期<input type="date" data-k="date" value="' + esc(r.date || "") + '"></label>')
+    + R('<label class="f">品名<input type="text" data-k="product" value="' + esc(r.product || "") + '"></label>')
+    + R('<label class="f">原文品名<input type="text" data-k="product_original" value="' + esc(r.product_original || "") + '"></label>')
+    + R('<div class="grid2">'
+        + '<label class="f">幣別<select data-k="currency">' + curOpts + "</select></label>"
+        + '<label class="f">金額<input type="number" step="any" data-k="amount" value="' + (r.amount || 0) + '"></label>'
+      + "</div>")
+    + R('<label class="f">數量<input type="number" step="any" data-k="qty" value="' + (r.qty || 1) + '"></label>')
+    + R('<label class="f">類別<select data-k="category">' + opts + "</select></label>")
+    + R('<label class="f">商店<input type="text" data-k="store" value="' + esc(r.store || "") + '"></label>')
+    + "</div>";
 }
 function itemCard(r, mode) {
   /* 每項獨立一行，方便一眼睇完 */
@@ -730,10 +736,7 @@ function openEdit(id) {
   var r = f.rec;
   edId = id; edList = f.list; edDraft = JSON.parse(JSON.stringify(r));
   $("edTitle").textContent = r.product || "編輯明細";
-  $("edBody").innerHTML = fieldGrid(edDraft)
-    + '<div class="hint" style="margin-top:12px">改完按右上角「儲存」；按「取消」就唔會改到。'
-    + (r.product_original && r.product_original !== r.product ? "<br>原文：" + esc(r.product_original) : "")
-    + "</div>";
+  $("edBody").innerHTML = fieldGrid(edDraft);
   $("editSheet").hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -744,7 +747,7 @@ function closeEdit() {
 function saveEdit() {
   var f = findRec(edId);
   if (!f || !edDraft) { closeEdit(); return; }
-  ["qty", "amount", "currency", "category", "date", "store"].forEach(function (k) {
+  ["product", "product_original", "qty", "amount", "currency", "category", "date", "store"].forEach(function (k) {
     applyEdit(f.rec, k, edDraft[k]);
   });
   saveLocal();
