@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=25">
+<link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
 <div id="vhProbe" aria-hidden="true"></div>
@@ -22,10 +22,6 @@
     <div class="hd-l">
       <div class="hd-t">個人記帳</div>
       <div class="hd-s" id="hdSub">載入中…</div>
-    </div>
-    <div class="hd-r">
-      <div class="hd-total" id="hdTotal">—</div>
-      <div class="hd-hkd">HKD 總支出</div>
     </div>
   </header>
 
@@ -58,6 +54,14 @@
 
     <!-- ── 明細 ── -->
     <section class="view" id="v-led" hidden>
+      <div class="hero">
+        <div class="hero-top">
+          <span class="hero-k">總支出（HKD）</span>
+          <button class="eye" id="eyeBtn" type="button" aria-label="隱藏金額"><svg class="ico" viewBox="0 0 24 24"><path d="M2.9 12S6.5 5.9 12 5.9 21.1 12 21.1 12 17.5 18.1 12 18.1 2.9 12 2.9 12Z"/><circle cx="12" cy="12" r="3.1"/><path class="eye-slash" d="M4.4 19.6 19.6 4.4" style="display:none"/></svg></button>
+        </div>
+        <div class="hero-v" id="heroAmt">—</div>
+        <div class="hero-s" id="heroSub">—</div>
+      </div>
       <div class="tools">
         <button class="act" id="btnSync"><span class="act-i"><svg class="ico" viewBox="0 0 24 24"><path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.9 4.5v4.3h-4.3"/></svg></span><span class="act-l">同步</span></button>
         <button class="act" id="btnTr"><span class="act-i"><svg class="ico" viewBox="0 0 24 24"><path d="M4 6.4h9"/><path d="M8.5 4.4v2c0 4-1.6 6.6-4.5 8.6"/><path d="M6 12.4c1.6 2.6 3.4 3.9 5.7 4.6"/><path d="M13.6 20l3.7-9 3.7 9"/><path d="M15.2 16.7h4.2"/></svg></span><span class="act-l">譯成中文</span></button>
@@ -143,7 +147,7 @@
           <button class="btn" id="btnHard">強制更新介面</button>
         </div>
         <div class="set-p" id="about"></div>
-        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v25</b>（如你見到唔係 v25，請重新載入）</div>
+        <div class="hint" id="verline" style="text-align:center;margin-top:8px">介面版本 <b>v26</b>（如你見到唔係 v26，請重新載入）</div>
       </div>
     </section>
 
@@ -168,6 +172,6 @@
   <div class="overlay" id="ov" hidden><div class="spinner"></div><div id="ovTxt">處理中…</div></div>
   <div class="toast" id="toast"></div>
 </div>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>
