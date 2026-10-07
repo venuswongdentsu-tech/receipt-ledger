@@ -88,6 +88,7 @@ var S = { provider: "openrouter", style: "openai", base: PROVIDERS.openrouter.ba
           model: PROVIDERS.openrouter.model, key: "", repo: "", token: "", rates: "" };
 var items = [];          // 帳簿
 var pending = [];        // 待確認
+var hideAmt = (function () { try { return localStorage.getItem("ra.hideAmt") === "1"; } catch (e) { return false; } })();  // 眼睛掣
 var ledgerSha = null;
 var rates = {}, ratesDate = "";
 var photoCache = {};
@@ -658,7 +659,6 @@ function fmtShort(iso) {
 }
 function renderHeader() {
   var total = items.reduce(function (s, r) { return s + (Number(r.hkd) || 0); }, 0);
-  $("hdTotal").textContent = money(total);
   var rcpts = {};
   items.forEach(function (r) { if (r.receipt_id) rcpts[r.receipt_id] = 1; });
   $("hdSub").textContent = items.length + " 件已入帳 · " + Object.keys(rcpts).length + " 張收據"
@@ -778,8 +778,7 @@ function renderLedger() {
     byDay[r.date] = (byDay[r.date] || 0) + h;
   });
   var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
-  var html = '<div class="st"><div class="st-k">總支出（HKD）</div><div class="st-v">' + money(total) + "</div>"
-    + '<div class="st-k" style="margin-top:4px">' + items.length + " 件 · " + Object.keys(byDay).length + " 日</div></div>";
+  var html = "";   /* 總支出已搬去頂部 hero 大卡 */
   cats.forEach(function (c) {
     var pct = total ? (byCat[c] / total * 100) : 0;
     html += '<div class="st"><div class="st-k">' + esc(c) + " · " + pct.toFixed(1) + '%</div><div class="st-v">'
@@ -790,6 +789,13 @@ function renderLedger() {
     html += '<div class="st"><div class="st-k">' + esc(c) + " 原幣</div><div class=\"st-v\">"
       + money(byCur[c].amt) + '</div><div class="st-k">≈ HK$' + money(byCur[c].hkd) + "</div></div>";
   });
+  var days = Object.keys(byDay).length;
+  var ha = $("heroAmt"), hs = $("heroSub");
+  if (ha) { ha.textContent = hideAmt ? "HK$ ••••••" : "HK$" + money(total); ha.classList.toggle("masked", !!hideAmt); }
+  var sl = document.querySelector("#eyeBtn .eye-slash"); if (sl) sl.style.display = hideAmt ? "" : "none";
+  if (hs) hs.textContent = items.length
+    ? items.length + " 件 · " + days + " 日 · 平均每日 HK$" + money(days ? total / days : 0)
+    : "未有記錄 — 上傳第一張收據開始記帳";
   $("ledStats").innerHTML = items.length ? html : "";
   renderHeader();
 }
@@ -979,6 +985,11 @@ function bind() {
   });
   $("btnPick").addEventListener("click", function () { $("file").click(); });
   $("file").addEventListener("change", function (e) { handleFiles(e.target.files); e.target.value = ""; });
+  $("eyeBtn").addEventListener("click", function () {
+    hideAmt = !hideAmt;
+    try { localStorage.setItem("ra.hideAmt", hideAmt ? "1" : "0"); } catch (e) {}
+    renderLedger();
+  });
 
   $("pendList").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-act]"); if (!b) return;
