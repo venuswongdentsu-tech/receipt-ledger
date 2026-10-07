@@ -30,7 +30,7 @@ body{
 /* dvh 探針：量 CSS 100dvh 實際值（Safari 底部工具列會扣走）→ 同 visualViewport 取細 */
 #vhProbe{position:fixed; top:0; left:0; width:0; height:100dvh; pointer-events:none; visibility:hidden; z-index:-1}
 
-/* ── header：白底、黑字、大金額（極簡） ── */
+/* ── header：白底、黑字、標題（極簡；總額已搬去 hero 大卡） ── */
 .hd{
   flex:0 0 auto; background:#fff; color:var(--ink);
   padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
@@ -164,6 +164,18 @@ label.f input[type=text]{text-overflow:ellipsis}
 .edrow .grid2{margin-top:0}
 .edform label.f{font-size:12px}
 .edform label.f input,.edform label.f select{padding:12px; font-size:15px; border-radius:var(--r-sm)}
+
+/* ── 總支出 hero 大卡（頂部大金額＋眼睛掣） ── */
+.hero{background:#fff; border-radius:20px; padding:18px 18px 16px; margin-bottom:12px}
+.hero-top{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.hero-k{font-size:12.5px; color:var(--mut)}
+.hero-v{font-size:34px; font-weight:700; color:var(--ink); letter-spacing:-0.9px;
+  font-variant-numeric:tabular-nums; margin-top:5px; line-height:1.14}
+.hero-v.masked{letter-spacing:2.5px; color:var(--ink2)}
+.hero-s{font-size:12px; color:var(--mut); margin-top:5px}
+.eye{appearance:none; border:0; background:none; padding:5px; border-radius:50%; color:var(--mut); cursor:pointer; display:flex; align-items:center; flex:0 0 auto}
+.eye svg{width:19px; height:19px}
+.eye:active{background:var(--fill)}
 
 /* ── stats：白色小卡、大數字、單色進度條 ── */
 .stats{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:16px}
